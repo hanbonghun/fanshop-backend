@@ -13,18 +13,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/members")
+@RequestMapping("/members")
 @RequiredArgsConstructor
 public class MemberController {
 
 	private final MemberService memberService;
 
-	@PostMapping("/join")
+	@PostMapping(path = "/join", version = "1")
 	public ApiResponse<MemberResponse> join(@RequestBody JoinMemberRequest request) {
 		return ApiResponse.success(memberService.join(request));
 	}
 
-	@GetMapping("/{memberId}")
+	@GetMapping(path = "/{memberId}", version = "1")
 	public ApiResponse<MemberResponse> getMember(@PathVariable Long memberId) {
 		return ApiResponse.success(memberService.getMember(memberId));
 	}
