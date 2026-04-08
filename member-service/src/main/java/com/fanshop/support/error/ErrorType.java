@@ -7,6 +7,7 @@ public enum ErrorType {
 
 	MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, ErrorCode.MEMBER_NOT_FOUND, "Member not found.", LogLevel.WARN),
 	DUPLICATE_EMAIL(HttpStatus.CONFLICT, ErrorCode.DUPLICATE_EMAIL, "Email already registered.", LogLevel.WARN),
+	INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_PASSWORD, "Invalid password.", LogLevel.WARN),
 	DEFAULT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "An unexpected error has occurred.",
 			LogLevel.ERROR);
 

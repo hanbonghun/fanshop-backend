@@ -29,4 +29,9 @@ public class MemberController {
 		return ApiResponse.success(memberService.getMember(memberId));
 	}
 
+	@PostMapping(path = "/login", version = "1")
+	public ApiResponse<LoginResponse> login(@RequestBody LoginRequest request) {
+		return ApiResponse.success(memberService.login(request));
+	}
+
 }

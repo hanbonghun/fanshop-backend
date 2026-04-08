@@ -17,8 +17,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @AutoConfigureMockMvc
 class MemberControllerTest extends ContextTest {
@@ -29,15 +32,30 @@ class MemberControllerTest extends ContextTest {
 
 	private final MemberRepository memberRepository;
 
-	MemberControllerTest(MockMvc mockMvc, ObjectMapper objectMapper, MemberRepository memberRepository) {
+	private final PasswordEncoder passwordEncoder;
+
+	MemberControllerTest(MockMvc mockMvc, ObjectMapper objectMapper, MemberRepository memberRepository,
+			PasswordEncoder passwordEncoder) {
 		this.mockMvc = mockMvc;
 		this.objectMapper = objectMapper;
 		this.memberRepository = memberRepository;
+		this.passwordEncoder = passwordEncoder;
 	}
 
 	@AfterEach
 	void tearDown() {
 		memberRepository.deleteAll();
+	}
+
+	private String loginAndGetToken(String email, String password) throws Exception {
+		LoginRequest request = new LoginRequest(email, password);
+		MvcResult result = mockMvc
+			.perform(post("/api/v1/members/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
+			.andExpect(status().isOk())
+			.andReturn();
+		String body = result.getResponse().getContentAsString();
+		return objectMapper.readTree(body).get("data").get("accessToken").asText();
 	}
 
 	@Nested
@@ -48,7 +66,8 @@ class MemberControllerTest extends ContextTest {
 		@DisplayName("유효한 요청이면 200 OK와 회원 정보를 반환하고 DB에 저장된다")
 		void success() throws Exception {
 			// given
-			JoinMemberRequest request = new JoinMemberRequest("integration@email.com", "Integration User", "Pangyo");
+			JoinMemberRequest request = new JoinMemberRequest("integration@email.com", "Integration User", "Pangyo",
+					"password!");
 
 			// when & then (HTTP 응답 검증)
 			mockMvc
@@ -68,8 +87,9 @@ class MemberControllerTest extends ContextTest {
 		@DisplayName("중복된 이메일이면 409 Conflict를 반환한다")
 		void duplicateEmail() throws Exception {
 			// given
-			memberRepository.save(new Member("dup@email.com", "Existing User", "Seoul"));
-			JoinMemberRequest request = new JoinMemberRequest("dup@email.com", "New User", "Busan");
+			memberRepository
+				.save(new Member("dup@email.com", "Existing User", "Seoul", passwordEncoder.encode("password!")));
+			JoinMemberRequest request = new JoinMemberRequest("dup@email.com", "New User", "Busan", "password!");
 
 			// when & then
 			mockMvc
@@ -81,17 +101,73 @@ class MemberControllerTest extends ContextTest {
 	}
 
 	@Nested
+	@DisplayName("POST /api/v1/members/login")
+	class Login {
+
+		@Test
+		@DisplayName("올바른 이메일/비밀번호면 200 OK와 JWT를 반환한다")
+		void success() throws Exception {
+			// given
+			memberRepository
+				.save(new Member("login@email.com", "Login User", "Seoul", passwordEncoder.encode("password!")));
+			LoginRequest request = new LoginRequest("login@email.com", "password!");
+
+			// when & then
+			mockMvc
+				.perform(post("/api/v1/members/login").contentType(MediaType.APPLICATION_JSON)
+					.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+				.andExpect(jsonPath("$.data.memberId").isNumber());
+		}
+
+		@Test
+		@DisplayName("존재하지 않는 이메일이면 404 Not Found를 반환한다")
+		void memberNotFound() throws Exception {
+			// given
+			LoginRequest request = new LoginRequest("none@email.com", "password!");
+
+			// when & then
+			mockMvc
+				.perform(post("/api/v1/members/login").contentType(MediaType.APPLICATION_JSON)
+					.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isNotFound());
+		}
+
+		@Test
+		@DisplayName("비밀번호가 틀리면 401 Unauthorized를 반환한다")
+		void invalidPassword() throws Exception {
+			// given
+			memberRepository
+				.save(new Member("login@email.com", "Login User", "Seoul", passwordEncoder.encode("password!")));
+			LoginRequest request = new LoginRequest("login@email.com", "wrong!");
+
+			// when & then
+			mockMvc
+				.perform(post("/api/v1/members/login").contentType(MediaType.APPLICATION_JSON)
+					.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isUnauthorized());
+		}
+
+	}
+
+	@Nested
 	@DisplayName("GET /api/v1/members/{memberId}")
 	class GetMember {
 
 		@Test
-		@DisplayName("존재하는 회원 ID면 200 OK와 회원 정보를 반환한다")
+		@DisplayName("유효한 JWT로 존재하는 회원 ID면 200 OK와 회원 정보를 반환한다")
 		void success() throws Exception {
 			// given
-			Member saved = memberRepository.save(new Member("find@email.com", "Find User", "Incheon"));
+			memberRepository
+				.save(new Member("find@email.com", "Find User", "Incheon", passwordEncoder.encode("password!")));
+			String token = loginAndGetToken("find@email.com", "password!");
+			Member saved = memberRepository.findByEmail("find@email.com").get();
 
 			// when & then
-			mockMvc.perform(get("/api/v1/members/{memberId}", saved.getId()))
+			mockMvc
+				.perform(get("/api/v1/members/{memberId}", saved.getId())
+					.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.email").value(saved.getEmail()))
 				.andExpect(jsonPath("$.data.name").value(saved.getName()));
@@ -100,8 +176,16 @@ class MemberControllerTest extends ContextTest {
 		@Test
 		@DisplayName("존재하지 않는 회원 ID면 404 Not Found를 반환한다")
 		void notFound() throws Exception {
+			// given: 인증을 위해 먼저 회원을 가입하고 토큰을 발급받는다
+			memberRepository
+				.save(new Member("auth@email.com", "Auth User", "Seoul", passwordEncoder.encode("password!")));
+			String token = loginAndGetToken("auth@email.com", "password!");
+
 			// when & then
-			mockMvc.perform(get("/api/v1/members/{memberId}", 999L)).andExpect(status().isNotFound());
+			mockMvc
+				.perform(get("/api/v1/members/{memberId}", 999L)
+					.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isNotFound());
 		}
 
 	}

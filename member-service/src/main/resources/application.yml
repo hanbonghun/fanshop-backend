@@ -1,4 +1,8 @@
-spring.application.name: core-api
+spring.application.name: member-service
+
+jwt:
+  secret: fanshop-member-service-jwt-secret-key-must-be-at-least-256bits
+  expiration-ms: 86400000  # 24시간
 spring.profiles.active: local
 
 spring:
