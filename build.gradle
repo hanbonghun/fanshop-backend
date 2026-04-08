@@ -30,6 +30,10 @@ subprojects {
     }
 
     dependencies {
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        testCompileOnly 'org.projectlombok:lombok'
+        testAnnotationProcessor 'org.projectlombok:lombok'
         annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
         testImplementation 'org.springframework.boot:spring-boot-test'
         testImplementation 'org.junit.jupiter:junit-jupiter-api'

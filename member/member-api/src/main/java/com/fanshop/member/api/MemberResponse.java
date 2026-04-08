@@ -2,6 +2,12 @@ package com.fanshop.member.api;
 
 import com.fanshop.member.domain.Member;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MemberResponse {
 
 	private Long id;
@@ -10,26 +16,8 @@ public class MemberResponse {
 
 	private String name;
 
-	private MemberResponse(Long id, String email, String name) {
-		this.id = id;
-		this.email = email;
-		this.name = name;
-	}
-
 	public static MemberResponse from(Member member) {
 		return new MemberResponse(member.getId(), member.getEmail(), member.getName());
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public String getEmail() {
-		return email;
-	}
-
-	public String getName() {
-		return name;
 	}
 
 }
