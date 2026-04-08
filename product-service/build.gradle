@@ -1,0 +1,16 @@
+bootJar.enabled = true
+jar.enabled = false
+
+dependencies {
+    implementation project(":support:monitoring")
+    implementation project(":support:logging")
+
+    testImplementation project(":tests:api-docs")
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'com.h2database:h2'
+}
