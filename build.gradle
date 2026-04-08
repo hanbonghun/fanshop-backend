@@ -1,0 +1,104 @@
+plugins {
+    id 'java-library'
+    id 'org.springframework.boot' apply(false)
+    id 'io.spring.dependency-management'
+    id 'io.spring.javaformat' apply(false)
+    id 'org.asciidoctor.jvm.convert' apply(false)
+}
+
+apply from: 'lint.gradle'
+
+allprojects {
+    group = "${projectGroup}"
+    version = "${applicationVersion}"
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'org.asciidoctor.jvm.convert'
+    
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudDependenciesVersion}"
+        }
+    }
+
+    dependencies {
+        annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+        testImplementation 'org.springframework.boot:spring-boot-test'
+        testImplementation 'org.junit.jupiter:junit-jupiter-api'
+        testImplementation 'org.junit.jupiter:junit-jupiter-engine'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        testImplementation 'org.assertj:assertj-core'
+        testImplementation 'org.mockito:mockito-core'
+    }
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(project.javaVersion)
+        }
+    }
+
+    bootJar.enabled = false
+    jar.enabled = true
+
+    test {
+        useJUnitPlatform {
+            excludeTags 'develop', 'restdocs'
+        }
+    }
+
+    testing {
+        suites {
+            test {
+                targets {
+                    unitTest {
+                        testTask.configure {
+                            group = 'verification'
+                            useJUnitPlatform {
+                                excludeTags 'develop', 'context', 'restdocs'
+                            }
+                        }
+                    }
+
+                    contextTest {
+                        testTask.configure {
+                            group = 'verification'
+                            useJUnitPlatform {
+                                includeTags 'context'
+                            }
+                        }
+                    }
+
+                    restDocsTest {
+                        testTask.configure {
+                            group = 'verification'
+                            useJUnitPlatform {
+                                includeTags 'restdocs'
+                            }
+                        }
+                    }
+
+                    developTest {
+                        testTask.configure {
+                            group = 'verification'
+                            useJUnitPlatform {
+                                includeTags 'develop'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    tasks.named('asciidoctor').configure {
+        dependsOn restDocsTest
+    }
+}

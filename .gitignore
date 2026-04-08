@@ -1,0 +1,16 @@
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**
+!**/src/test/**
+
+### IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+
+### Local context (not for version control) ###
+CLAUDE.md
+.DS_Store
