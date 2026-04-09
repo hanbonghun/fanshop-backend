@@ -8,8 +8,6 @@ spring:
       - logging.yml
       - db-core.yml
   web.resources.add-mappings: false
-
-spring:
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
