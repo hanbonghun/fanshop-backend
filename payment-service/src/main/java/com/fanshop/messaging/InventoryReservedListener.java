@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Configuration;
 public class InventoryReservedListener {
 
     private final PaymentService paymentService;
+
     private final PaymentEventPublisher paymentEventPublisher;
 
     @Bean
@@ -30,7 +31,8 @@ public class InventoryReservedListener {
         PaymentResult result = paymentService.processPayment(event);
 
         switch (result) {
-            case PaymentResult.Approved(var completedEvent) -> paymentEventPublisher.publishPaymentCompleted(completedEvent);
+            case PaymentResult.Approved(var completedEvent) ->
+                paymentEventPublisher.publishPaymentCompleted(completedEvent);
             case PaymentResult.Failed(var failedEvent) -> paymentEventPublisher.publishPaymentFailed(failedEvent);
             case PaymentResult.AlreadyProcessed() -> log.warn("이미 처리된 결제 — orderId={}", event.orderId());
         }
