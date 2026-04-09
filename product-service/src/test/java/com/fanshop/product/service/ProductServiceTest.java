@@ -127,8 +127,7 @@ class ProductServiceTest {
             given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
             // when & then
-            assertThatThrownBy(() -> productService.softReserveStock(productId, 10))
-                .isInstanceOf(CoreException.class)
+            assertThatThrownBy(() -> productService.softReserveStock(productId, 10)).isInstanceOf(CoreException.class)
                 .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.INSUFFICIENT_STOCK));
         }
 

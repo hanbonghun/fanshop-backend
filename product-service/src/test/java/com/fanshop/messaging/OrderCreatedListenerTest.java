@@ -45,8 +45,7 @@ class OrderCreatedListenerTest {
 
             // then
             verify(productService).softReserveStock(3L, 4);
-            verify(stockEventPublisher).publishInventoryReserved(
-                    new InventoryReservedEvent(1L, 2L, 3L, 4, 50000L));
+            verify(stockEventPublisher).publishInventoryReserved(new InventoryReservedEvent(1L, 2L, 3L, 4, 50000L));
         }
 
         @Test
@@ -61,8 +60,8 @@ class OrderCreatedListenerTest {
             orderCreatedListener.handleOrderCreated(event);
 
             // then
-            verify(stockEventPublisher).publishInventoryRejected(
-                    new InventoryRejectedEvent(1L, exception.getMessage()));
+            verify(stockEventPublisher)
+                .publishInventoryRejected(new InventoryRejectedEvent(1L, exception.getMessage()));
         }
 
     }
