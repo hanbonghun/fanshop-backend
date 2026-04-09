@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class StockEventPublisher {
 
     private static final String INVENTORY_RESERVED_BINDING = "inventoryReserved-out-0";
+
     private static final String INVENTORY_REJECTED_BINDING = "inventoryRejected-out-0";
 
     private final StreamBridge streamBridge;

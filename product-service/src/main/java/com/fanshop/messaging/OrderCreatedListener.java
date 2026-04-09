@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Configuration;
 public class OrderCreatedListener {
 
     private final ProductService productService;
+
     private final StockEventPublisher stockEventPublisher;
 
     @Bean
@@ -31,9 +32,8 @@ public class OrderCreatedListener {
         log.info("Received order.created — orderId={}, productId={}", event.orderId(), event.productId());
         try {
             productService.softReserveStock(event.productId(), event.quantity());
-            stockEventPublisher.publishInventoryReserved(
-                    new InventoryReservedEvent(event.orderId(), event.memberId(), event.productId(), event.quantity(),
-                            event.totalPrice()));
+            stockEventPublisher.publishInventoryReserved(new InventoryReservedEvent(event.orderId(), event.memberId(),
+                    event.productId(), event.quantity(), event.totalPrice()));
         }
         catch (CoreException e) {
             log.warn("Inventory reservation failed — orderId={}, reason={}", event.orderId(), e.getMessage());
