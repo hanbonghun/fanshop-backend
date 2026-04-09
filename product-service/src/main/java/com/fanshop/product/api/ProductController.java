@@ -6,6 +6,7 @@ import com.fanshop.support.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,6 +28,12 @@ public class ProductController {
 	@GetMapping(path = "/{productId}", version = "1")
 	public ApiResponse<ProductResponse> getProduct(@PathVariable Long productId) {
 		return ApiResponse.success(productService.getProduct(productId));
+	}
+
+	@PatchMapping(path = "/{productId}/stock", version = "1")
+	public ApiResponse<Void> decreaseStock(@PathVariable Long productId, @RequestBody int quantity) {
+		productService.decreaseStock(productId, quantity);
+		return ApiResponse.success(null);
 	}
 
 }

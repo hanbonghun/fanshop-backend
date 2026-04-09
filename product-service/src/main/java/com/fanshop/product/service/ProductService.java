@@ -31,4 +31,11 @@ public class ProductService {
 		return ProductResponse.from(product);
 	}
 
+	@Transactional
+	public void decreaseStock(Long productId, int quantity) {
+		Product product = productRepository.findById(productId)
+			.orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND, productId));
+		product.decreaseStock(quantity);
+	}
+
 }

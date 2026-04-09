@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:h2:mem:orderdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+jwt:
+  secret: fanshop-member-service-jwt-secret-key-must-be-at-least-256bits
+  expiration-ms: 86400000
+
+product-service:
+  url: http://localhost:8082
+
+server:
+  port: 8083
