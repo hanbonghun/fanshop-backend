@@ -2,9 +2,29 @@
   "title": "Fanshop — Service Overview",
   "uid": "fanshop-overview",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": {
+          "query": "label_values(up{job=~\".+-service\"}, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".+-service",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
@@ -13,7 +33,7 @@
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (job)",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"$service\"}[1m])) by (job)",
           "legendFormat": "{{ job }}"
         }
       ],
@@ -28,7 +48,7 @@
       "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[1m])) by (job) / sum(rate(http_server_requests_seconds_count[1m])) by (job)",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"$service\", status=~\"5..\"}[1m])) by (job) / sum(rate(http_server_requests_seconds_count{job=~\"$service\"}[1m])) by (job)",
           "legendFormat": "{{ job }}"
         }
       ],
@@ -38,16 +58,16 @@
     },
     {
       "id": 3,
-      "title": "HTTP p99 레이턴시",
+      "title": "HTTP p99 / p95 레이턴시",
       "type": "timeseries",
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[1m])) by (le, job))",
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"$service\"}[1m])) by (le, job))",
           "legendFormat": "p99 {{ job }}"
         },
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[1m])) by (le, job))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"$service\"}[1m])) by (le, job))",
           "legendFormat": "p95 {{ job }}"
         }
       ],
@@ -57,13 +77,13 @@
     },
     {
       "id": 4,
-      "title": "HTTP p99 레이턴시 — URI별 (order-service)",
+      "title": "HTTP p99 레이턴시 — URI별 (선택 서비스)",
       "type": "timeseries",
       "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=\"order-service\"}[1m])) by (le, uri, method))",
-          "legendFormat": "{{ method }} {{ uri }}"
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"$service\"}[1m])) by (le, uri, method, job))",
+          "legendFormat": "{{ job }} {{ method }} {{ uri }}"
         }
       ],
       "fieldConfig": {
@@ -77,7 +97,7 @@
       "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
       "targets": [
         {
-          "expr": "hikaricp_connections_active{job=~\".+-service\"}",
+          "expr": "hikaricp_connections_active{job=~\"$service\"}",
           "legendFormat": "{{ job }}"
         }
       ],
@@ -92,12 +112,15 @@
       "gridPos": { "x": 8, "y": 16, "w": 8, "h": 8 },
       "targets": [
         {
-          "expr": "hikaricp_connections_pending{job=~\".+-service\"}",
+          "expr": "hikaricp_connections_pending{job=~\"$service\"}",
           "legendFormat": "{{ job }}"
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "fixedColor": "red", "mode": "fixed" } }
+        "defaults": {
+          "unit": "short",
+          "color": { "fixedColor": "red", "mode": "fixed" }
+        }
       }
     },
     {
@@ -107,7 +130,7 @@
       "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
       "targets": [
         {
-          "expr": "increase(hikaricp_connections_timeout_total{job=~\".+-service\"}[1m])",
+          "expr": "increase(hikaricp_connections_timeout_total{job=~\"$service\"}[1m])",
           "legendFormat": "{{ job }}"
         }
       ],
@@ -122,7 +145,7 @@
       "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{area=\"heap\", job=~\".+-service\"}",
+          "expr": "jvm_memory_used_bytes{area=\"heap\", job=~\"$service\"}",
           "legendFormat": "{{ job }}"
         }
       ],
@@ -137,7 +160,7 @@
       "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "jvm_threads_live_threads{job=~\".+-service\"}",
+          "expr": "jvm_threads_live_threads{job=~\"$service\"}",
           "legendFormat": "{{ job }}"
         }
       ],
