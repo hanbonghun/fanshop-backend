@@ -97,7 +97,7 @@ class ProductServiceTest {
             // given
             Long productId = 1L;
             Product product = new Product("티셔츠", 29000L, 100);
-            given(productRepository.findById(productId)).willReturn(Optional.of(product));
+            given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
             // when
             productService.decreaseStock(productId, 10);
@@ -110,7 +110,7 @@ class ProductServiceTest {
         @DisplayName("존재하지 않는 상품 ID면 PRODUCT_NOT_FOUND 예외를 던진다")
         void notFound() {
             // given
-            given(productRepository.findById(999L)).willReturn(Optional.empty());
+            given(productRepository.findByIdWithLock(999L)).willReturn(Optional.empty());
 
             // when & then
             assertThatThrownBy(() -> productService.decreaseStock(999L, 1)).isInstanceOf(CoreException.class)
@@ -123,7 +123,7 @@ class ProductServiceTest {
             // given
             Long productId = 1L;
             Product product = new Product("티셔츠", 29000L, 5);
-            given(productRepository.findById(productId)).willReturn(Optional.of(product));
+            given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
             // when & then
             assertThatThrownBy(() -> productService.decreaseStock(productId, 10)).isInstanceOf(CoreException.class)
