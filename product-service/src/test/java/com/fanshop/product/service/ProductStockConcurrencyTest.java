@@ -20,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class ProductStockConcurrencyTest extends ContextTest {
 
     private final ProductService productService;
+
     private final ProductRepository productRepository;
 
     @MockitoBean
@@ -56,9 +57,11 @@ class ProductStockConcurrencyTest extends ContextTest {
                     startLatch.await();
                     productService.decreaseStock(productId, 1);
                     successCount.incrementAndGet();
-                } catch (Exception e) {
+                }
+                catch (Exception e) {
                     failCount.incrementAndGet();
-                } finally {
+                }
+                finally {
                     doneLatch.countDown();
                 }
             });
@@ -73,8 +76,8 @@ class ProductStockConcurrencyTest extends ContextTest {
         Product result = productRepository.findById(productId).orElseThrow();
         int finalStock = result.getStockQuantity();
 
-        System.out.printf("[동시성 테스트] 성공: %d건 / 실패: %d건 / 최종 재고: %d (기대값: 0)%n",
-                successCount.get(), failCount.get(), finalStock);
+        System.out.printf("[동시성 테스트] 성공: %d건 / 실패: %d건 / 최종 재고: %d (기대값: 0)%n", successCount.get(), failCount.get(),
+                finalStock);
 
         // 락이 없으면 이 assertion은 실패한다.
         // 여러 트랜잭션이 같은 재고를 동시에 읽고 덮어쓰는 Lost Update 발생.

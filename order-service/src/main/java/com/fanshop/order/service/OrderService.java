@@ -1,7 +1,5 @@
 package com.fanshop.order.service;
 
-import java.util.List;
-
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
 import com.fanshop.messaging.OrderEventPublisher;
@@ -41,10 +39,17 @@ public class OrderService {
         Order savedOrder = orderRepository
             .save(new Order(memberId, product.getId(), request.getQuantity(), totalPrice, OrderStatus.PENDING));
 
-        orderEventPublisher.publishOrderCreated(
-                new OrderCreatedEvent(savedOrder.getId(), memberId, product.getId(), request.getQuantity()));
+        orderEventPublisher.publishOrderCreated(new OrderCreatedEvent(savedOrder.getId(), memberId, product.getId(),
+                request.getQuantity(), totalPrice));
 
         return OrderResponse.from(savedOrder);
+    }
+
+    @Transactional
+    public void waitForPayment(Long orderId) {
+        Order order = findOrder(orderId);
+        order.waitForPayment();
+        log.info("Order waiting for payment: orderId={}", orderId);
     }
 
     @Transactional

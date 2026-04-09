@@ -1,8 +1,11 @@
 package com.fanshop.messaging;
 
-import com.fanshop.messaging.event.StockResultEvent;
+import com.fanshop.messaging.event.InventoryRejectedEvent;
+import com.fanshop.messaging.event.InventoryReservedEvent;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.stereotype.Component;
 
@@ -11,13 +14,20 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class StockEventPublisher {
 
-    private static final String STOCK_RESULT_BINDING = "stockResult-out-0";
+    private static final String INVENTORY_RESERVED_BINDING = "inventoryReserved-out-0";
+
+    private static final String INVENTORY_REJECTED_BINDING = "inventoryRejected-out-0";
 
     private final StreamBridge streamBridge;
 
-    public void publishStockResult(StockResultEvent event) {
-        streamBridge.send(STOCK_RESULT_BINDING, event);
-        log.info("Published stock.result: orderId={}, success={}", event.orderId(), event.success());
+    public void publishInventoryReserved(InventoryReservedEvent event) {
+        streamBridge.send(INVENTORY_RESERVED_BINDING, event);
+        log.info("Published inventory.reserved — orderId={}", event.orderId());
+    }
+
+    public void publishInventoryRejected(InventoryRejectedEvent event) {
+        streamBridge.send(INVENTORY_REJECTED_BINDING, event);
+        log.info("Published inventory.rejected — orderId={}, reason={}", event.orderId(), event.reason());
     }
 
 }

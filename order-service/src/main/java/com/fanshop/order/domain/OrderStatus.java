@@ -2,6 +2,6 @@ package com.fanshop.order.domain;
 
 public enum OrderStatus {
 
-    PENDING, CONFIRMED, CANCELLED
+    PENDING, WAITING_PAYMENT, CONFIRMED, CANCELLED
 
 }

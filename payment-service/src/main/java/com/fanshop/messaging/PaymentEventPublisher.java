@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class PaymentEventPublisher {
 
     private static final String PAYMENT_COMPLETED_BINDING = "paymentCompleted-out-0";
+
     private static final String PAYMENT_FAILED_BINDING = "paymentFailed-out-0";
 
     private final StreamBridge streamBridge;
