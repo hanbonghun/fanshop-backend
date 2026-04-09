@@ -1,11 +1,9 @@
-package com.fanshop.kafka;
+package com.fanshop.messaging;
 
-import com.fanshop.kafka.event.StockResultEvent;
-
+import com.fanshop.messaging.event.StockResultEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -13,12 +11,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class StockEventPublisher {
 
-    private static final String STOCK_RESULT_TOPIC = "stock.result";
+    private static final String STOCK_RESULT_BINDING = "stockResult-out-0";
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final StreamBridge streamBridge;
 
     public void publishStockResult(StockResultEvent event) {
-        kafkaTemplate.send(STOCK_RESULT_TOPIC, String.valueOf(event.orderId()), event);
+        streamBridge.send(STOCK_RESULT_BINDING, event);
         log.info("Published stock.result: orderId={}, success={}", event.orderId(), event.success());
     }
 

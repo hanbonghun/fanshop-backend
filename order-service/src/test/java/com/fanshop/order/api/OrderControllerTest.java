@@ -11,7 +11,7 @@ import com.fanshop.ContextTest;
 import com.fanshop.auth.JwtTokenProvider;
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
-import com.fanshop.kafka.OrderEventPublisher;
+import com.fanshop.messaging.OrderEventPublisher;
 import com.fanshop.order.domain.OrderStatus;
 import com.fanshop.support.response.ApiResponse;
 

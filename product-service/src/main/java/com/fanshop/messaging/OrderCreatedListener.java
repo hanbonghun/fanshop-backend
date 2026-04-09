@@ -1,18 +1,17 @@
-package com.fanshop.kafka;
+package com.fanshop.messaging;
 
-import com.fanshop.kafka.event.OrderCreatedEvent;
-import com.fanshop.kafka.event.StockResultEvent;
+import com.fanshop.messaging.event.OrderCreatedEvent;
+import com.fanshop.messaging.event.StockResultEvent;
 import com.fanshop.product.service.ProductService;
 import com.fanshop.support.error.CoreException;
-
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @Slf4j
-@Component
+@Configuration
 @RequiredArgsConstructor
 public class OrderCreatedListener {
 
@@ -20,7 +19,11 @@ public class OrderCreatedListener {
 
     private final StockEventPublisher stockEventPublisher;
 
-    @KafkaListener(topics = "order.created", groupId = "product-service")
+    @Bean
+    public Consumer<OrderCreatedEvent> orderCreatedConsumer() {
+        return this::handleOrderCreated;
+    }
+
     public void handleOrderCreated(OrderCreatedEvent event) {
         log.info("Received order.created: orderId={}, productId={}", event.orderId(), event.productId());
         try {

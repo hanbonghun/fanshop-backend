@@ -9,8 +9,8 @@ import static org.mockito.Mockito.verify;
 
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
-import com.fanshop.kafka.OrderEventPublisher;
-import com.fanshop.kafka.event.OrderCreatedEvent;
+import com.fanshop.messaging.OrderEventPublisher;
+import com.fanshop.messaging.event.OrderCreatedEvent;
 import com.fanshop.order.api.CreateOrderRequest;
 import com.fanshop.order.api.OrderResponse;
 import com.fanshop.order.domain.Order;

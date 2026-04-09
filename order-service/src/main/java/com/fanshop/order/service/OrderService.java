@@ -1,9 +1,11 @@
 package com.fanshop.order.service;
 
+import java.util.List;
+
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
-import com.fanshop.kafka.OrderEventPublisher;
-import com.fanshop.kafka.event.OrderCreatedEvent;
+import com.fanshop.messaging.OrderEventPublisher;
+import com.fanshop.messaging.event.OrderCreatedEvent;
 import com.fanshop.order.api.CreateOrderRequest;
 import com.fanshop.order.api.OrderResponse;
 import com.fanshop.order.domain.Order;
@@ -33,15 +35,12 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(Long memberId, CreateOrderRequest request) {
-        // 1. 상품 정보 조회 (동기) — 존재 여부 및 가격 확인
         ProductResponse product = fetchProduct(request.getProductId());
 
-        // 2. 주문 PENDING 상태로 저장
         long totalPrice = product.getPrice() * request.getQuantity();
         Order savedOrder = orderRepository
             .save(new Order(memberId, product.getId(), request.getQuantity(), totalPrice, OrderStatus.PENDING));
 
-        // 3. order.created 이벤트 발행 → product-service가 재고 감소 후 결과 발행
         orderEventPublisher.publishOrderCreated(
                 new OrderCreatedEvent(savedOrder.getId(), memberId, product.getId(), request.getQuantity()));
 

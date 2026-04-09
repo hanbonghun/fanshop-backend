@@ -8,18 +8,21 @@ spring:
       - logging.yml
       - db-core.yml
   web.resources.add-mappings: false
-  kafka:
-    bootstrap-servers: localhost:9092
-    consumer:
-      group-id: product-service
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "com.fanshop.kafka.event"
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  cloud:
+    function:
+      definition: orderCreatedConsumer
+    stream:
+      default:
+        contentType: application/json
+      bindings:
+        orderCreatedConsumer-in-0:
+          destination: order.created
+          group: product-service
+        stockResult-out-0:
+          destination: stock.result
+      kafka:
+        binder:
+          brokers: localhost:9092
 
 server:
   tomcat:
@@ -31,6 +34,8 @@ server:
 ---
 spring.config.activate.on-profile: local
 
+server:
+  port: 8081
 
 ---
 spring.config.activate.on-profile: local-dev
@@ -58,4 +63,3 @@ spring.config.activate.on-profile: staging
 
 ---
 spring.config.activate.on-profile: live
-

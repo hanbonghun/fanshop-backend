@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fanshop.ContextTest;
-import com.fanshop.kafka.StockEventPublisher;
+import com.fanshop.messaging.StockEventPublisher;
 import com.fanshop.product.domain.Product;
 import com.fanshop.product.domain.ProductRepository;
 
