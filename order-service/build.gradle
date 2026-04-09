@@ -2,6 +2,9 @@ bootJar.enabled = true
 jar.enabled = false
 
 dependencies {
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
     implementation project(":support:monitoring")
     implementation project(":support:logging")
 

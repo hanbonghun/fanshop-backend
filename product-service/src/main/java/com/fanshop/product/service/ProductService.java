@@ -35,6 +35,9 @@ public class ProductService {
 	public void decreaseStock(Long productId, int quantity) {
 		Product product = productRepository.findById(productId)
 			.orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND, productId));
+		if (product.getStockQuantity() < quantity) {
+			throw new CoreException(ErrorType.INSUFFICIENT_STOCK, productId);
+		}
 		product.decreaseStock(quantity);
 	}
 

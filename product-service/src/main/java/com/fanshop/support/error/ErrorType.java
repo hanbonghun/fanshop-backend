@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorType {
 
 	PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, ErrorCode.PRODUCT_NOT_FOUND, "Product not found.", LogLevel.WARN),
+	INSUFFICIENT_STOCK(HttpStatus.CONFLICT, ErrorCode.INSUFFICIENT_STOCK, "Insufficient stock.", LogLevel.WARN),
 	DEFAULT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "An unexpected error has occurred.",
 			LogLevel.ERROR);
 
