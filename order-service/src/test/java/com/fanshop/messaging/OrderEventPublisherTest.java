@@ -25,7 +25,7 @@ class OrderEventPublisherTest {
     @DisplayName("order.created 이벤트를 output binding으로 발행한다")
     void publishOrderCreated() {
         // given
-        OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4);
+        OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
 
         // when
         orderEventPublisher.publishOrderCreated(event);

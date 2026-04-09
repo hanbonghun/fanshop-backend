@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+
     private final TossPaymentsClient tossPaymentsClient;
 
     @Transactional
@@ -31,8 +32,7 @@ public class PaymentService {
             return PaymentResult.alreadyProcessed();
         }
 
-        Payment payment = paymentRepository.save(
-                new Payment(event.orderId(), event.memberId(), event.totalPrice()));
+        Payment payment = paymentRepository.save(new Payment(event.orderId(), event.memberId(), event.totalPrice()));
 
         PgPaymentResult pgResult = tossPaymentsClient
             .pay(new PgPaymentRequest(event.orderId(), event.memberId(), event.totalPrice()));

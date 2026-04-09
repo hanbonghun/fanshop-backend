@@ -10,7 +10,7 @@ spring:
   web.resources.add-mappings: false
   cloud:
     function:
-      definition: orderCreatedConsumer
+      definition: orderCreatedConsumer;paymentCompletedConsumer;paymentFailedConsumer
     stream:
       default:
         contentType: application/json
@@ -18,8 +18,16 @@ spring:
         orderCreatedConsumer-in-0:
           destination: order.created
           group: product-service
-        stockResult-out-0:
-          destination: stock.result
+        inventoryReserved-out-0:
+          destination: inventory.reserved
+        inventoryRejected-out-0:
+          destination: inventory.rejected
+        paymentCompletedConsumer-in-0:
+          destination: payment.completed
+          group: product-service
+        paymentFailedConsumer-in-0:
+          destination: payment.failed
+          group: product-service
       kafka:
         binder:
           brokers: localhost:9092
