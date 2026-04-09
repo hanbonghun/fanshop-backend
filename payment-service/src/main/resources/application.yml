@@ -1,0 +1,55 @@
+spring:
+  application.name: payment-service
+  profiles.active: local
+  config:
+    import:
+      - monitoring.yml
+      - logging.yml
+  cloud:
+    function:
+      definition: inventoryReservedConsumer
+    stream:
+      default:
+        contentType: application/json
+      bindings:
+        inventoryReservedConsumer-in-0:
+          destination: inventory.reserved
+          group: payment-service
+        paymentCompleted-out-0:
+          destination: payment.completed
+        paymentFailed-out-0:
+          destination: payment.failed
+      kafka:
+        binder:
+          brokers: localhost:9092
+
+server:
+  port: 8084
+
+---
+spring.config.activate.on-profile: local
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:paymentdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+---
+spring.config.activate.on-profile: local-dev
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/payment_db?serverTimezone=UTC&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: fanshop
+    password: fanshop
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
