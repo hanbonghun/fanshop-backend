@@ -42,6 +42,10 @@ public class Order extends BaseEntity {
         this.status = status;
     }
 
+    public void waitForPayment() {
+        this.status = OrderStatus.WAITING_PAYMENT;
+    }
+
     public void confirm() {
         this.status = OrderStatus.CONFIRMED;
     }

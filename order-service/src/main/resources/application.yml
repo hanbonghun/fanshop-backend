@@ -7,15 +7,24 @@ spring:
       - logging.yml
   cloud:
     function:
-      definition: stockResultConsumer
+      definition: inventoryReservedConsumer;inventoryRejectedConsumer;paymentCompletedConsumer;paymentFailedConsumer
     stream:
       default:
         contentType: application/json
       bindings:
         orderCreated-out-0:
           destination: order.created
-        stockResultConsumer-in-0:
-          destination: stock.result
+        inventoryReservedConsumer-in-0:
+          destination: inventory.reserved
+          group: order-service
+        inventoryRejectedConsumer-in-0:
+          destination: inventory.rejected
+          group: order-service
+        paymentCompletedConsumer-in-0:
+          destination: payment.completed
+          group: order-service
+        paymentFailedConsumer-in-0:
+          destination: payment.failed
           group: order-service
       kafka:
         binder:

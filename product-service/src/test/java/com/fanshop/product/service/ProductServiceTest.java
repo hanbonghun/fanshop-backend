@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import java.util.Optional;
+
 import com.fanshop.product.api.CreateProductRequest;
 import com.fanshop.product.api.ProductResponse;
 import com.fanshop.product.domain.Product;
@@ -20,8 +22,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
@@ -88,7 +88,100 @@ class ProductServiceTest {
     }
 
     @Nested
-    @DisplayName("decreaseStock (재고 감소)")
+    @DisplayName("softReserveStock (재고 선점)")
+    class SoftReserveStock {
+
+        @Test
+        @DisplayName("가용 재고가 충분하면 reservedQuantity가 증가한다")
+        void success() {
+            // given
+            Long productId = 1L;
+            Product product = new Product("티셔츠", 29000L, 100);
+            given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
+
+            // when
+            productService.softReserveStock(productId, 10);
+
+            // then
+            assertThat(product.getReservedQuantity()).isEqualTo(10);
+            assertThat(product.getStockQuantity()).isEqualTo(100); // 아직 실재고 변화 없음
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 상품 ID면 PRODUCT_NOT_FOUND 예외를 던진다")
+        void notFound() {
+            // given
+            given(productRepository.findByIdWithLock(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> productService.softReserveStock(999L, 1)).isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
+        }
+
+        @Test
+        @DisplayName("가용 재고가 부족하면 INSUFFICIENT_STOCK 예외를 던진다")
+        void insufficientStock() {
+            // given
+            Long productId = 1L;
+            Product product = new Product("티셔츠", 29000L, 5);
+            given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
+
+            // when & then
+            assertThatThrownBy(() -> productService.softReserveStock(productId, 10))
+                .isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.INSUFFICIENT_STOCK));
+        }
+
+    }
+
+    @Nested
+    @DisplayName("confirmReservation (재고 확정)")
+    class ConfirmReservation {
+
+        @Test
+        @DisplayName("예약된 재고를 실재고에서 차감하고 예약량을 해제한다")
+        void success() {
+            // given
+            Long productId = 1L;
+            Product product = new Product("티셔츠", 29000L, 100);
+            product.softReserve(10);
+            given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
+
+            // when
+            productService.confirmReservation(productId, 10);
+
+            // then
+            assertThat(product.getStockQuantity()).isEqualTo(90);
+            assertThat(product.getReservedQuantity()).isEqualTo(0);
+        }
+
+    }
+
+    @Nested
+    @DisplayName("releaseReservation (재고 복원)")
+    class ReleaseReservation {
+
+        @Test
+        @DisplayName("결제 실패 시 예약량만 해제하고 실재고는 그대로 유지한다")
+        void success() {
+            // given
+            Long productId = 1L;
+            Product product = new Product("티셔츠", 29000L, 100);
+            product.softReserve(10);
+            given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
+
+            // when
+            productService.releaseReservation(productId, 10);
+
+            // then
+            assertThat(product.getStockQuantity()).isEqualTo(100); // 실재고 변화 없음
+            assertThat(product.getReservedQuantity()).isEqualTo(0);
+        }
+
+    }
+
+    @Nested
+    @DisplayName("decreaseStock (재고 직접 차감 - 관리자 API)")
     class DecreaseStock {
 
         @Test
@@ -104,17 +197,6 @@ class ProductServiceTest {
 
             // then
             assertThat(product.getStockQuantity()).isEqualTo(90);
-        }
-
-        @Test
-        @DisplayName("존재하지 않는 상품 ID면 PRODUCT_NOT_FOUND 예외를 던진다")
-        void notFound() {
-            // given
-            given(productRepository.findByIdWithLock(999L)).willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> productService.decreaseStock(999L, 1)).isInstanceOf(CoreException.class)
-                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
         }
 
         @Test

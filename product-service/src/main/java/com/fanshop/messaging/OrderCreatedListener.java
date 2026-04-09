@@ -1,12 +1,16 @@
 package com.fanshop.messaging;
 
+import java.util.function.Consumer;
+
+import com.fanshop.messaging.event.InventoryRejectedEvent;
+import com.fanshop.messaging.event.InventoryReservedEvent;
 import com.fanshop.messaging.event.OrderCreatedEvent;
-import com.fanshop.messaging.event.StockResultEvent;
 import com.fanshop.product.service.ProductService;
 import com.fanshop.support.error.CoreException;
-import java.util.function.Consumer;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,7 +20,6 @@ import org.springframework.context.annotation.Configuration;
 public class OrderCreatedListener {
 
     private final ProductService productService;
-
     private final StockEventPublisher stockEventPublisher;
 
     @Bean
@@ -25,14 +28,16 @@ public class OrderCreatedListener {
     }
 
     public void handleOrderCreated(OrderCreatedEvent event) {
-        log.info("Received order.created: orderId={}, productId={}", event.orderId(), event.productId());
+        log.info("Received order.created — orderId={}, productId={}", event.orderId(), event.productId());
         try {
-            productService.decreaseStock(event.productId(), event.quantity());
-            stockEventPublisher.publishStockResult(new StockResultEvent(event.orderId(), true, null));
+            productService.softReserveStock(event.productId(), event.quantity());
+            stockEventPublisher.publishInventoryReserved(
+                    new InventoryReservedEvent(event.orderId(), event.memberId(), event.productId(), event.quantity(),
+                            event.totalPrice()));
         }
         catch (CoreException e) {
-            log.warn("Stock decrease failed: orderId={}, reason={}", event.orderId(), e.getMessage());
-            stockEventPublisher.publishStockResult(new StockResultEvent(event.orderId(), false, e.getMessage()));
+            log.warn("Inventory reservation failed — orderId={}, reason={}", event.orderId(), e.getMessage());
+            stockEventPublisher.publishInventoryRejected(new InventoryRejectedEvent(event.orderId(), e.getMessage()));
         }
     }
 
