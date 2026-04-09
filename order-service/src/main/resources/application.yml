@@ -1,5 +1,25 @@
-spring.application.name: order-service
-spring.profiles.active: local
+spring:
+  application.name: order-service
+  profiles.active: local
+  config:
+    import:
+      - monitoring.yml
+      - logging.yml
+  cloud:
+    function:
+      definition: stockResultConsumer
+    stream:
+      default:
+        contentType: application/json
+      bindings:
+        orderCreated-out-0:
+          destination: order.created
+        stockResultConsumer-in-0:
+          destination: stock.result
+          group: order-service
+      kafka:
+        binder:
+          brokers: localhost:9092
 
 jwt:
   secret: fanshop-member-service-jwt-secret-key-must-be-at-least-256bits
@@ -27,6 +47,9 @@ spring:
 
 ---
 spring.config.activate.on-profile: local-dev
+
+server:
+  port: 8083
 
 spring:
   datasource:

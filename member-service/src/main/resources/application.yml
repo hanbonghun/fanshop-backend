@@ -29,7 +29,7 @@ spring.config.activate.on-profile: local
 spring.config.activate.on-profile: local-dev
 
 server:
-  port: 8080
+  port: 8082
 
 spring:
   jpa:
