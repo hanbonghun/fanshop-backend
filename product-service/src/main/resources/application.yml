@@ -8,6 +8,21 @@ spring:
       - logging.yml
       - db-core.yml
   web.resources.add-mappings: false
+  cloud:
+    function:
+      definition: orderCreatedConsumer
+    stream:
+      default:
+        contentType: application/json
+      bindings:
+        orderCreatedConsumer-in-0:
+          destination: order.created
+          group: product-service
+        stockResult-out-0:
+          destination: stock.result
+      kafka:
+        binder:
+          brokers: localhost:9092
 
 server:
   tomcat:
@@ -19,6 +34,8 @@ server:
 ---
 spring.config.activate.on-profile: local
 
+server:
+  port: 8081
 
 ---
 spring.config.activate.on-profile: local-dev
@@ -46,4 +63,3 @@ spring.config.activate.on-profile: staging
 
 ---
 spring.config.activate.on-profile: live
-

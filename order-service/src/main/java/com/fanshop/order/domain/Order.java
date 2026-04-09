@@ -42,4 +42,12 @@ public class Order extends BaseEntity {
         this.status = status;
     }
 
+    public void confirm() {
+        this.status = OrderStatus.CONFIRMED;
+    }
+
+    public void cancel() {
+        this.status = OrderStatus.CANCELLED;
+    }
+
 }

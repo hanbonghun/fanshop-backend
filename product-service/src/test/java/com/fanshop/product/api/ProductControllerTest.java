@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fanshop.ContextTest;
+import com.fanshop.messaging.StockEventPublisher;
 import com.fanshop.product.domain.Product;
 import com.fanshop.product.domain.ProductRepository;
 
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @AutoConfigureMockMvc
@@ -29,6 +31,9 @@ class ProductControllerTest extends ContextTest {
     private final ObjectMapper objectMapper;
 
     private final ProductRepository productRepository;
+
+    @MockitoBean
+    private StockEventPublisher stockEventPublisher;
 
     ProductControllerTest(MockMvc mockMvc, ObjectMapper objectMapper, ProductRepository productRepository) {
         this.mockMvc = mockMvc;
