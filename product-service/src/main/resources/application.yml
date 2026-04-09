@@ -24,6 +24,18 @@ spring.config.activate.on-profile: local
 ---
 spring.config.activate.on-profile: local-dev
 
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/product_db?serverTimezone=UTC&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: fanshop
+    password: fanshop
+  jpa:
+    hibernate:
+      ddl-auto: update
 
 ---
 spring.config.activate.on-profile: dev

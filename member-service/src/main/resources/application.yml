@@ -28,6 +28,20 @@ spring.config.activate.on-profile: local
 ---
 spring.config.activate.on-profile: local-dev
 
+server:
+  port: 8080
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+storage:
+  database:
+    core-db:
+      url: localhost:3306/member_db?serverTimezone=UTC&characterEncoding=UTF-8
+      username: fanshop
+      password: fanshop
 
 ---
 spring.config.activate.on-profile: dev

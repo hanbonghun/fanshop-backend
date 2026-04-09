@@ -1,8 +1,22 @@
+spring.application.name: order-service
+spring.profiles.active: local
+
+jwt:
+  secret: fanshop-member-service-jwt-secret-key-must-be-at-least-256bits
+  expiration-ms: 86400000
+
+product-service:
+  url: http://localhost:8081
+
+server:
+  port: 8083
+
+---
+spring.config.activate.on-profile: local
+
 spring:
-  application:
-    name: order-service
   datasource:
-    url: jdbc:h2:mem:orderdb
+    url: jdbc:h2:mem:orderdb;MODE=MySQL;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -11,12 +25,16 @@ spring:
       ddl-auto: create-drop
     show-sql: true
 
-jwt:
-  secret: fanshop-member-service-jwt-secret-key-must-be-at-least-256bits
-  expiration-ms: 86400000
+---
+spring.config.activate.on-profile: local-dev
 
-product-service:
-  url: http://localhost:8082
-
-server:
-  port: 8083
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/order_db?serverTimezone=UTC&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: fanshop
+    password: fanshop
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
