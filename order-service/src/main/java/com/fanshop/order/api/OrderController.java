@@ -16,13 +16,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class OrderController {
 
-	private final OrderService orderService;
+    private final OrderService orderService;
 
-	@PostMapping
-	public ApiResponse<OrderResponse> createOrder(
-			@AuthenticationPrincipal String memberId,
-			@RequestBody CreateOrderRequest request) {
-		return ApiResponse.success(orderService.createOrder(Long.valueOf(memberId), request));
-	}
+    @PostMapping
+    public ApiResponse<OrderResponse> createOrder(@AuthenticationPrincipal String memberId,
+            @RequestBody CreateOrderRequest request) {
+        return ApiResponse.success(orderService.createOrder(Long.valueOf(memberId), request));
+    }
 
 }

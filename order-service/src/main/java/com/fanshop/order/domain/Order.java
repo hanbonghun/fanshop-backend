@@ -18,28 +18,28 @@ import lombok.NoArgsConstructor;
 @Table(name = "orders")
 public class Order extends BaseEntity {
 
-	@Column(nullable = false)
-	private Long memberId;
+    @Column(nullable = false)
+    private Long memberId;
 
-	@Column(nullable = false)
-	private Long productId;
+    @Column(nullable = false)
+    private Long productId;
 
-	@Column(nullable = false)
-	private int quantity;
+    @Column(nullable = false)
+    private int quantity;
 
-	@Column(nullable = false)
-	private long totalPrice;
+    @Column(nullable = false)
+    private long totalPrice;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private OrderStatus status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderStatus status;
 
-	public Order(Long memberId, Long productId, int quantity, long totalPrice, OrderStatus status) {
-		this.memberId = memberId;
-		this.productId = productId;
-		this.quantity = quantity;
-		this.totalPrice = totalPrice;
-		this.status = status;
-	}
+    public Order(Long memberId, Long productId, int quantity, long totalPrice, OrderStatus status) {
+        this.memberId = memberId;
+        this.productId = productId;
+        this.quantity = quantity;
+        this.totalPrice = totalPrice;
+        this.status = status;
+    }
 
 }

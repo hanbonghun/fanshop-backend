@@ -30,76 +30,72 @@ import org.springframework.web.client.HttpClientErrorException;
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
-	@Mock
-	private OrderRepository orderRepository;
+    @Mock
+    private OrderRepository orderRepository;
 
-	@Mock
-	private ProductClient productClient;
+    @Mock
+    private ProductClient productClient;
 
-	@InjectMocks
-	private OrderService orderService;
+    @InjectMocks
+    private OrderService orderService;
 
-	@Nested
-	@DisplayName("createOrder (주문 생성)")
-	class CreateOrder {
+    @Nested
+    @DisplayName("createOrder (주문 생성)")
+    class CreateOrder {
 
-		@Test
-		@DisplayName("재고가 충분하면 주문을 저장하고 재고를 감소시킨다")
-		void success() {
-			// given
-			Long memberId = 1L;
-			CreateOrderRequest request = new CreateOrderRequest(10L, 2);
+        @Test
+        @DisplayName("재고가 충분하면 주문을 저장하고 재고를 감소시킨다")
+        void success() {
+            // given
+            Long memberId = 1L;
+            CreateOrderRequest request = new CreateOrderRequest(10L, 2);
 
-			ProductResponse product = new ProductResponse(10L, "티셔츠", 29000L, 100);
-			given(productClient.getProduct(10L)).willReturn(ApiResponse.success(product));
-			given(orderRepository.save(any(Order.class)))
-				.willReturn(new Order(memberId, 10L, 2, 58000L, OrderStatus.CONFIRMED));
+            ProductResponse product = new ProductResponse(10L, "티셔츠", 29000L, 100);
+            given(productClient.getProduct(10L)).willReturn(ApiResponse.success(product));
+            given(orderRepository.save(any(Order.class)))
+                .willReturn(new Order(memberId, 10L, 2, 58000L, OrderStatus.CONFIRMED));
 
-			// when
-			OrderResponse response = orderService.createOrder(memberId, request);
+            // when
+            OrderResponse response = orderService.createOrder(memberId, request);
 
-			// then
-			assertThat(response.getTotalPrice()).isEqualTo(58000L);
-			assertThat(response.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-			verify(productClient).decreaseStock(10L, 2);
-		}
+            // then
+            assertThat(response.getTotalPrice()).isEqualTo(58000L);
+            assertThat(response.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+            verify(productClient).decreaseStock(10L, 2);
+        }
 
-		@Test
-		@DisplayName("존재하지 않는 상품이면 PRODUCT_NOT_FOUND 예외를 던진다")
-		void productNotFound() {
-			// given
-			Long memberId = 1L;
-			CreateOrderRequest request = new CreateOrderRequest(999L, 2);
-			given(productClient.getProduct(999L)).willThrow(HttpClientErrorException.NotFound.class);
+        @Test
+        @DisplayName("존재하지 않는 상품이면 PRODUCT_NOT_FOUND 예외를 던진다")
+        void productNotFound() {
+            // given
+            Long memberId = 1L;
+            CreateOrderRequest request = new CreateOrderRequest(999L, 2);
+            given(productClient.getProduct(999L)).willThrow(HttpClientErrorException.NotFound.class);
 
-			// when & then
-			assertThatThrownBy(() -> orderService.createOrder(memberId, request))
-				.isInstanceOf(CoreException.class)
-				.satisfies(e -> assertThat(((CoreException) e).getErrorType())
-					.isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
+            // when & then
+            assertThatThrownBy(() -> orderService.createOrder(memberId, request)).isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
 
-			verify(orderRepository, never()).save(any());
-		}
+            verify(orderRepository, never()).save(any());
+        }
 
-		@Test
-		@DisplayName("재고가 부족하면 INSUFFICIENT_STOCK 예외를 던진다")
-		void insufficientStock() {
-			// given
-			Long memberId = 1L;
-			CreateOrderRequest request = new CreateOrderRequest(10L, 50);
+        @Test
+        @DisplayName("재고가 부족하면 INSUFFICIENT_STOCK 예외를 던진다")
+        void insufficientStock() {
+            // given
+            Long memberId = 1L;
+            CreateOrderRequest request = new CreateOrderRequest(10L, 50);
 
-			ProductResponse product = new ProductResponse(10L, "티셔츠", 29000L, 5);
-			given(productClient.getProduct(10L)).willReturn(ApiResponse.success(product));
+            ProductResponse product = new ProductResponse(10L, "티셔츠", 29000L, 5);
+            given(productClient.getProduct(10L)).willReturn(ApiResponse.success(product));
 
-			// when & then
-			assertThatThrownBy(() -> orderService.createOrder(memberId, request))
-				.isInstanceOf(CoreException.class)
-				.satisfies(e -> assertThat(((CoreException) e).getErrorType())
-					.isEqualTo(ErrorType.INSUFFICIENT_STOCK));
+            // when & then
+            assertThatThrownBy(() -> orderService.createOrder(memberId, request)).isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.INSUFFICIENT_STOCK));
 
-			verify(orderRepository, never()).save(any());
-		}
+            verify(orderRepository, never()).save(any());
+        }
 
-	}
+    }
 
 }

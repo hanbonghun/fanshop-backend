@@ -12,16 +12,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class JoinMemberRequest {
 
-	private String email;
+    private String email;
 
-	private String name;
+    private String name;
 
-	private String address;
+    private String address;
 
-	private String password;
+    private String password;
 
-	public Member toEntity(String encodedPassword) {
-		return new Member(email, name, address, encodedPassword);
-	}
+    public Member toEntity(String encodedPassword) {
+        return new Member(email, name, address, encodedPassword);
+    }
 
 }

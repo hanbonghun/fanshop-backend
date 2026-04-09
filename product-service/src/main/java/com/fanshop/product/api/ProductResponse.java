@@ -10,17 +10,16 @@ import lombok.Getter;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ProductResponse {
 
-	private Long id;
+    private Long id;
 
-	private String name;
+    private String name;
 
-	private long price;
+    private long price;
 
-	private int stockQuantity;
+    private int stockQuantity;
 
-	public static ProductResponse from(Product product) {
-		return new ProductResponse(product.getId(), product.getName(), product.getPrice(),
-				product.getStockQuantity());
-	}
+    public static ProductResponse from(Product product) {
+        return new ProductResponse(product.getId(), product.getName(), product.getPrice(), product.getStockQuantity());
+    }
 
 }

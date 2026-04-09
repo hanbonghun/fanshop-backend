@@ -12,14 +12,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateProductRequest {
 
-	private String name;
+    private String name;
 
-	private long price;
+    private long price;
 
-	private int stockQuantity;
+    private int stockQuantity;
 
-	public Product toEntity() {
-		return new Product(name, price, stockQuantity);
-	}
+    public Product toEntity() {
+        return new Product(name, price, stockQuantity);
+    }
 
 }

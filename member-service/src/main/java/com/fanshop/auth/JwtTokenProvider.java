@@ -14,37 +14,37 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
-	private final SecretKey key;
+    private final SecretKey key;
 
-	private final long expirationMs;
+    private final long expirationMs;
 
-	public JwtTokenProvider(JwtProperties properties) {
-		this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
-		this.expirationMs = properties.expirationMs();
-	}
+    public JwtTokenProvider(JwtProperties properties) {
+        this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
+        this.expirationMs = properties.expirationMs();
+    }
 
-	public String generate(Long memberId, String email) {
-		return Jwts.builder()
-			.subject(String.valueOf(memberId))
-			.claim("email", email)
-			.issuedAt(new Date())
-			.expiration(new Date(System.currentTimeMillis() + expirationMs))
-			.signWith(key)
-			.compact();
-	}
+    public String generate(Long memberId, String email) {
+        return Jwts.builder()
+            .subject(String.valueOf(memberId))
+            .claim("email", email)
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + expirationMs))
+            .signWith(key)
+            .compact();
+    }
 
-	public Claims parse(String token) {
-		return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
-	}
+    public Claims parse(String token) {
+        return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+    }
 
-	public boolean isValid(String token) {
-		try {
-			parse(token);
-			return true;
-		}
-		catch (JwtException | IllegalArgumentException e) {
-			return false;
-		}
-	}
+    public boolean isValid(String token) {
+        try {
+            parse(token);
+            return true;
+        }
+        catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
 
 }

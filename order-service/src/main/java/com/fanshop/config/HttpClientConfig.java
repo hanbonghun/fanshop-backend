@@ -12,18 +12,15 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 @Configuration
 public class HttpClientConfig {
 
-	@Value("${product-service.url}")
-	private String productServiceUrl;
+    @Value("${product-service.url}")
+    private String productServiceUrl;
 
-	@Bean
-	public ProductClient productClient() {
-		RestClient restClient = RestClient.builder()
-			.baseUrl(productServiceUrl)
-			.build();
-		HttpServiceProxyFactory factory = HttpServiceProxyFactory
-			.builderFor(RestClientAdapter.create(restClient))
-			.build();
-		return factory.createClient(ProductClient.class);
-	}
+    @Bean
+    public ProductClient productClient() {
+        RestClient restClient = RestClient.builder().baseUrl(productServiceUrl).build();
+        HttpServiceProxyFactory factory = HttpServiceProxyFactory.builderFor(RestClientAdapter.create(restClient))
+            .build();
+        return factory.createClient(ProductClient.class);
+    }
 
 }

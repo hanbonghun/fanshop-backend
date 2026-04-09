@@ -10,14 +10,14 @@ import lombok.Getter;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MemberResponse {
 
-	private Long id;
+    private Long id;
 
-	private String email;
+    private String email;
 
-	private String name;
+    private String name;
 
-	public static MemberResponse from(Member member) {
-		return new MemberResponse(member.getId(), member.getEmail(), member.getName());
-	}
+    public static MemberResponse from(Member member) {
+        return new MemberResponse(member.getId(), member.getEmail(), member.getName());
+    }
 
 }

@@ -21,35 +21,35 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class MemberService {
 
-	private final MemberRepository memberRepository;
+    private final MemberRepository memberRepository;
 
-	private final PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
-	private final JwtTokenProvider jwtTokenProvider;
+    private final JwtTokenProvider jwtTokenProvider;
 
-	@Transactional
-	public MemberResponse join(JoinMemberRequest request) {
-		memberRepository.findByEmail(request.getEmail()).ifPresent(m -> {
-			throw new CoreException(ErrorType.DUPLICATE_EMAIL, request.getEmail());
-		});
-		Member saved = memberRepository.save(request.toEntity(passwordEncoder.encode(request.getPassword())));
-		return MemberResponse.from(saved);
-	}
+    @Transactional
+    public MemberResponse join(JoinMemberRequest request) {
+        memberRepository.findByEmail(request.getEmail()).ifPresent(m -> {
+            throw new CoreException(ErrorType.DUPLICATE_EMAIL, request.getEmail());
+        });
+        Member saved = memberRepository.save(request.toEntity(passwordEncoder.encode(request.getPassword())));
+        return MemberResponse.from(saved);
+    }
 
-	public MemberResponse getMember(Long memberId) {
-		Member member = memberRepository.findById(memberId)
-			.orElseThrow(() -> new CoreException(ErrorType.MEMBER_NOT_FOUND, memberId));
-		return MemberResponse.from(member);
-	}
+    public MemberResponse getMember(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+            .orElseThrow(() -> new CoreException(ErrorType.MEMBER_NOT_FOUND, memberId));
+        return MemberResponse.from(member);
+    }
 
-	public LoginResponse login(LoginRequest request) {
-		Member member = memberRepository.findByEmail(request.getEmail())
-			.orElseThrow(() -> new CoreException(ErrorType.MEMBER_NOT_FOUND));
-		if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
-			throw new CoreException(ErrorType.INVALID_PASSWORD);
-		}
-		String token = jwtTokenProvider.generate(member.getId(), member.getEmail());
-		return new LoginResponse(token, member.getId());
-	}
+    public LoginResponse login(LoginRequest request) {
+        Member member = memberRepository.findByEmail(request.getEmail())
+            .orElseThrow(() -> new CoreException(ErrorType.MEMBER_NOT_FOUND));
+        if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
+            throw new CoreException(ErrorType.INVALID_PASSWORD);
+        }
+        String token = jwtTokenProvider.generate(member.getId(), member.getEmail());
+        return new LoginResponse(token, member.getId());
+    }
 
 }

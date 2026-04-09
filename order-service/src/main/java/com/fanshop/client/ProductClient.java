@@ -11,10 +11,10 @@ import org.springframework.web.service.annotation.PatchExchange;
 @HttpExchange("/api/v1/products")
 public interface ProductClient {
 
-	@GetExchange("/{productId}")
-	ApiResponse<ProductResponse> getProduct(@PathVariable("productId") Long productId);
+    @GetExchange("/{productId}")
+    ApiResponse<ProductResponse> getProduct(@PathVariable("productId") Long productId);
 
-	@PatchExchange("/{productId}/stock")
-	ApiResponse<Void> decreaseStock(@PathVariable("productId") Long productId, @RequestBody int quantity);
+    @PatchExchange("/{productId}/stock")
+    ApiResponse<Void> decreaseStock(@PathVariable("productId") Long productId, @RequestBody int quantity);
 
 }

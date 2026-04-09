@@ -8,8 +8,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductResponse {
-	private Long id;
-	private String name;
-	private long price;
-	private int stockQuantity;
+
+    private Long id;
+
+    private String name;
+
+    private long price;
+
+    private int stockQuantity;
+
 }

@@ -17,21 +17,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class MemberController {
 
-	private final MemberService memberService;
+    private final MemberService memberService;
 
-	@PostMapping(path = "/join", version = "1")
-	public ApiResponse<MemberResponse> join(@RequestBody JoinMemberRequest request) {
-		return ApiResponse.success(memberService.join(request));
-	}
+    @PostMapping(path = "/join", version = "1")
+    public ApiResponse<MemberResponse> join(@RequestBody JoinMemberRequest request) {
+        return ApiResponse.success(memberService.join(request));
+    }
 
-	@GetMapping(path = "/{memberId}", version = "1")
-	public ApiResponse<MemberResponse> getMember(@PathVariable Long memberId) {
-		return ApiResponse.success(memberService.getMember(memberId));
-	}
+    @GetMapping(path = "/{memberId}", version = "1")
+    public ApiResponse<MemberResponse> getMember(@PathVariable Long memberId) {
+        return ApiResponse.success(memberService.getMember(memberId));
+    }
 
-	@PostMapping(path = "/login", version = "1")
-	public ApiResponse<LoginResponse> login(@RequestBody LoginRequest request) {
-		return ApiResponse.success(memberService.login(request));
-	}
+    @PostMapping(path = "/login", version = "1")
+    public ApiResponse<LoginResponse> login(@RequestBody LoginRequest request) {
+        return ApiResponse.success(memberService.login(request));
+    }
 
 }

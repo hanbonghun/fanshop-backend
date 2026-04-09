@@ -7,8 +7,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public class LoginResponse {
 
-	private String accessToken;
+    private String accessToken;
 
-	private Long memberId;
+    private Long memberId;
 
 }

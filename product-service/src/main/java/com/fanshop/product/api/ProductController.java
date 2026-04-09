@@ -18,22 +18,22 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ProductController {
 
-	private final ProductService productService;
+    private final ProductService productService;
 
-	@PostMapping(version = "1")
-	public ApiResponse<ProductResponse> create(@RequestBody CreateProductRequest request) {
-		return ApiResponse.success(productService.create(request));
-	}
+    @PostMapping(version = "1")
+    public ApiResponse<ProductResponse> create(@RequestBody CreateProductRequest request) {
+        return ApiResponse.success(productService.create(request));
+    }
 
-	@GetMapping(path = "/{productId}", version = "1")
-	public ApiResponse<ProductResponse> getProduct(@PathVariable Long productId) {
-		return ApiResponse.success(productService.getProduct(productId));
-	}
+    @GetMapping(path = "/{productId}", version = "1")
+    public ApiResponse<ProductResponse> getProduct(@PathVariable Long productId) {
+        return ApiResponse.success(productService.getProduct(productId));
+    }
 
-	@PatchMapping(path = "/{productId}/stock", version = "1")
-	public ApiResponse<Void> decreaseStock(@PathVariable Long productId, @RequestBody int quantity) {
-		productService.decreaseStock(productId, quantity);
-		return ApiResponse.success(null);
-	}
+    @PatchMapping(path = "/{productId}/stock", version = "1")
+    public ApiResponse<Void> decreaseStock(@PathVariable Long productId, @RequestBody int quantity) {
+        productService.decreaseStock(productId, quantity);
+        return ApiResponse.success(null);
+    }
 
 }
