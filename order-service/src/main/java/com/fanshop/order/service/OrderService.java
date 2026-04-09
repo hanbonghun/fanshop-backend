@@ -2,6 +2,8 @@ package com.fanshop.order.service;
 
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
+import com.fanshop.kafka.OrderEventPublisher;
+import com.fanshop.kafka.event.OrderCreatedEvent;
 import com.fanshop.order.api.CreateOrderRequest;
 import com.fanshop.order.api.OrderResponse;
 import com.fanshop.order.domain.Order;
@@ -11,11 +13,13 @@ import com.fanshop.support.error.CoreException;
 import com.fanshop.support.error.ErrorType;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -25,25 +29,37 @@ public class OrderService {
 
     private final ProductClient productClient;
 
+    private final OrderEventPublisher orderEventPublisher;
+
     @Transactional
     public OrderResponse createOrder(Long memberId, CreateOrderRequest request) {
-        // 1. 상품 조회
+        // 1. 상품 정보 조회 (동기) — 존재 여부 및 가격 확인
         ProductResponse product = fetchProduct(request.getProductId());
 
-        // 2. 재고 확인
-        if (product.getStockQuantity() < request.getQuantity()) {
-            throw new CoreException(ErrorType.INSUFFICIENT_STOCK, request.getProductId());
-        }
-
-        // 3. 주문 저장
+        // 2. 주문 PENDING 상태로 저장
         long totalPrice = product.getPrice() * request.getQuantity();
         Order savedOrder = orderRepository
-            .save(new Order(memberId, product.getId(), request.getQuantity(), totalPrice, OrderStatus.CONFIRMED));
+            .save(new Order(memberId, product.getId(), request.getQuantity(), totalPrice, OrderStatus.PENDING));
 
-        // 4. 재고 감소 — 동기 호출. 실패 시 트랜잭션 롤백
-        productClient.decreaseStock(product.getId(), request.getQuantity());
+        // 3. order.created 이벤트 발행 → product-service가 재고 감소 후 결과 발행
+        orderEventPublisher.publishOrderCreated(
+                new OrderCreatedEvent(savedOrder.getId(), memberId, product.getId(), request.getQuantity()));
 
         return OrderResponse.from(savedOrder);
+    }
+
+    @Transactional
+    public void confirmOrder(Long orderId) {
+        Order order = findOrder(orderId);
+        order.confirm();
+        log.info("Order confirmed: orderId={}", orderId);
+    }
+
+    @Transactional
+    public void cancelOrder(Long orderId, String reason) {
+        Order order = findOrder(orderId);
+        order.cancel();
+        log.info("Order cancelled: orderId={}, reason={}", orderId, reason);
     }
 
     private ProductResponse fetchProduct(Long productId) {
@@ -53,6 +69,11 @@ public class OrderService {
         catch (HttpClientErrorException.NotFound e) {
             throw new CoreException(ErrorType.PRODUCT_NOT_FOUND, productId);
         }
+    }
+
+    private Order findOrder(Long orderId) {
+        return orderRepository.findById(orderId)
+            .orElseThrow(() -> new CoreException(ErrorType.ORDER_NOT_FOUND, orderId));
     }
 
 }

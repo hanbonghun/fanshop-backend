@@ -11,6 +11,7 @@ import com.fanshop.ContextTest;
 import com.fanshop.auth.JwtTokenProvider;
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
+import com.fanshop.kafka.OrderEventPublisher;
 import com.fanshop.order.domain.OrderStatus;
 import com.fanshop.support.response.ApiResponse;
 
@@ -38,6 +39,9 @@ class OrderControllerTest extends ContextTest {
     @MockitoBean
     private ProductClient productClient;
 
+    @MockitoBean
+    private OrderEventPublisher orderEventPublisher;
+
     OrderControllerTest(MockMvc mockMvc, ObjectMapper objectMapper, JwtTokenProvider jwtTokenProvider) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
@@ -53,12 +57,11 @@ class OrderControllerTest extends ContextTest {
     class CreateOrder {
 
         @Test
-        @DisplayName("유효한 JWT와 충분한 재고면 200 OK와 주문 정보를 반환한다")
+        @DisplayName("유효한 JWT와 상품이 존재하면 200 OK와 PENDING 주문을 반환한다")
         void success() throws Exception {
             // given
             ProductResponse product = new ProductResponse(1L, "티셔츠", 29000L, 100);
             given(productClient.getProduct(1L)).willReturn(ApiResponse.success(product));
-            given(productClient.decreaseStock(eq(1L), eq(2))).willReturn(ApiResponse.success(null));
 
             CreateOrderRequest request = new CreateOrderRequest(1L, 2);
 
@@ -69,7 +72,7 @@ class OrderControllerTest extends ContextTest {
                     .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalPrice").value(58000))
-                .andExpect(jsonPath("$.data.status").value(OrderStatus.CONFIRMED.name()));
+                .andExpect(jsonPath("$.data.status").value(OrderStatus.PENDING.name()));
         }
 
         @Test
@@ -98,22 +101,6 @@ class OrderControllerTest extends ContextTest {
                     .header(HttpHeaders.AUTHORIZATION, bearerToken(1L))
                     .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
-        }
-
-        @Test
-        @DisplayName("재고가 부족하면 409 Conflict를 반환한다")
-        void insufficientStock() throws Exception {
-            // given
-            ProductResponse product = new ProductResponse(1L, "티셔츠", 29000L, 1);
-            given(productClient.getProduct(1L)).willReturn(ApiResponse.success(product));
-            CreateOrderRequest request = new CreateOrderRequest(1L, 10);
-
-            // when & then
-            mockMvc
-                .perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON)
-                    .header(HttpHeaders.AUTHORIZATION, bearerToken(1L))
-                    .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict());
         }
 
     }

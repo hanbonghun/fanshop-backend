@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
+import com.fanshop.kafka.OrderEventPublisher;
+import com.fanshop.kafka.event.OrderCreatedEvent;
 import com.fanshop.order.api.CreateOrderRequest;
 import com.fanshop.order.api.OrderResponse;
 import com.fanshop.order.domain.Order;
@@ -36,6 +38,9 @@ class OrderServiceTest {
     @Mock
     private ProductClient productClient;
 
+    @Mock
+    private OrderEventPublisher orderEventPublisher;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -44,7 +49,7 @@ class OrderServiceTest {
     class CreateOrder {
 
         @Test
-        @DisplayName("재고가 충분하면 주문을 저장하고 재고를 감소시킨다")
+        @DisplayName("상품이 존재하면 PENDING 상태로 주문을 저장하고 order.created 이벤트를 발행한다")
         void success() {
             // given
             Long memberId = 1L;
@@ -53,15 +58,15 @@ class OrderServiceTest {
             ProductResponse product = new ProductResponse(10L, "티셔츠", 29000L, 100);
             given(productClient.getProduct(10L)).willReturn(ApiResponse.success(product));
             given(orderRepository.save(any(Order.class)))
-                .willReturn(new Order(memberId, 10L, 2, 58000L, OrderStatus.CONFIRMED));
+                .willReturn(new Order(memberId, 10L, 2, 58000L, OrderStatus.PENDING));
 
             // when
             OrderResponse response = orderService.createOrder(memberId, request);
 
             // then
             assertThat(response.getTotalPrice()).isEqualTo(58000L);
-            assertThat(response.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-            verify(productClient).decreaseStock(10L, 2);
+            assertThat(response.getStatus()).isEqualTo(OrderStatus.PENDING);
+            verify(orderEventPublisher).publishOrderCreated(any(OrderCreatedEvent.class));
         }
 
         @Test
@@ -77,23 +82,60 @@ class OrderServiceTest {
                 .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
 
             verify(orderRepository, never()).save(any());
+            verify(orderEventPublisher, never()).publishOrderCreated(any());
+        }
+
+    }
+
+    @Nested
+    @DisplayName("confirmOrder (주문 확정)")
+    class ConfirmOrder {
+
+        @Test
+        @DisplayName("PENDING 주문을 CONFIRMED로 변경한다")
+        void success() {
+            // given
+            Long orderId = 1L;
+            Order order = new Order(1L, 10L, 2, 58000L, OrderStatus.PENDING);
+            given(orderRepository.findById(orderId)).willReturn(java.util.Optional.of(order));
+
+            // when
+            orderService.confirmOrder(orderId);
+
+            // then
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         }
 
         @Test
-        @DisplayName("재고가 부족하면 INSUFFICIENT_STOCK 예외를 던진다")
-        void insufficientStock() {
+        @DisplayName("존재하지 않는 주문이면 ORDER_NOT_FOUND 예외를 던진다")
+        void orderNotFound() {
             // given
-            Long memberId = 1L;
-            CreateOrderRequest request = new CreateOrderRequest(10L, 50);
-
-            ProductResponse product = new ProductResponse(10L, "티셔츠", 29000L, 5);
-            given(productClient.getProduct(10L)).willReturn(ApiResponse.success(product));
+            given(orderRepository.findById(999L)).willReturn(java.util.Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> orderService.createOrder(memberId, request)).isInstanceOf(CoreException.class)
-                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.INSUFFICIENT_STOCK));
+            assertThatThrownBy(() -> orderService.confirmOrder(999L)).isInstanceOf(CoreException.class)
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.ORDER_NOT_FOUND));
+        }
 
-            verify(orderRepository, never()).save(any());
+    }
+
+    @Nested
+    @DisplayName("cancelOrder (주문 취소)")
+    class CancelOrder {
+
+        @Test
+        @DisplayName("PENDING 주문을 CANCELLED로 변경한다")
+        void success() {
+            // given
+            Long orderId = 1L;
+            Order order = new Order(1L, 10L, 2, 58000L, OrderStatus.PENDING);
+            given(orderRepository.findById(orderId)).willReturn(java.util.Optional.of(order));
+
+            // when
+            orderService.cancelOrder(orderId, "재고 부족");
+
+            // then
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         }
 
     }
