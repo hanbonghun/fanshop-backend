@@ -10,18 +10,18 @@ import org.springframework.context.event.EventListener;
 @Configuration
 public class OpenTelemetryAppenderInitializer {
 
-	private final ObjectProvider<OpenTelemetry> openTelemetryProvider;
+    private final ObjectProvider<OpenTelemetry> openTelemetryProvider;
 
-	public OpenTelemetryAppenderInitializer(ObjectProvider<OpenTelemetry> openTelemetryProvider) {
-		this.openTelemetryProvider = openTelemetryProvider;
-	}
+    public OpenTelemetryAppenderInitializer(ObjectProvider<OpenTelemetry> openTelemetryProvider) {
+        this.openTelemetryProvider = openTelemetryProvider;
+    }
 
-	@EventListener(ApplicationReadyEvent.class)
-	public void initialize() {
-		OpenTelemetry openTelemetry = openTelemetryProvider.getIfAvailable();
-		if (openTelemetry != null) {
-			OpenTelemetryAppender.install(openTelemetry);
-		}
-	}
+    @EventListener(ApplicationReadyEvent.class)
+    public void initialize() {
+        OpenTelemetry openTelemetry = openTelemetryProvider.getIfAvailable();
+        if (openTelemetry != null) {
+            OpenTelemetryAppender.install(openTelemetry);
+        }
+    }
 
 }
