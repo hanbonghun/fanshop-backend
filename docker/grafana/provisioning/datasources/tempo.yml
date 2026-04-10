@@ -18,3 +18,9 @@ datasources:
         timeShiftEnabled: true
         spanStartTimeShift: 1h
         spanEndTimeShift: -1h
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -5m
+        spanEndTimeShift: 5m
+        filterByTraceID: true
+        filterBySpanID: false
