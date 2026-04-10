@@ -9,10 +9,16 @@
         </encoder>
     </appender>
 
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+        <captureExperimentalAttributes>true</captureExperimentalAttributes>
+        <captureMdcAttributes>*</captureMdcAttributes>
+    </appender>
+
     <logger name="org.springframework" level="INFO"/>
     <logger name="io.dodn.springboot" level="DEBUG"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
+        <appender-ref ref="OTEL"/>
     </root>
 </configuration>
