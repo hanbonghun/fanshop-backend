@@ -91,9 +91,22 @@ services:
     depends_on:
       - prometheus
       - tempo
+      - loki
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: fanshop-loki
+    user: "0:0"
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./docker/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/tmp/loki
+    command: [ "-config.file=/etc/loki/local-config.yaml" ]
 
 volumes:
   mysql-data:
   prometheus-data:
   grafana-data:
   tempo-data:
+  loki-data:

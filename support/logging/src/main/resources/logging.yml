@@ -1,3 +1,1 @@
 logging.config: classpath:logback/logback-${spring.profiles.active}.xml
-
-management.otlp.metrics.export.enabled: false
