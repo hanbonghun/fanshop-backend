@@ -2,7 +2,7 @@
   "title": "Fanshop — Service Overview",
   "uid": "fanshop-overview",
   "schemaVersion": 38,
-  "version": 2,
+  "version": 3,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
   "templating": {
@@ -13,12 +13,12 @@
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "prometheus" },
         "query": {
-          "query": "label_values(up{job=~\".+-service\"}, job)",
+          "query": "label_values(jvm_memory_used_bytes, service_name)",
           "refId": "StandardVariableQuery"
         },
         "includeAll": true,
         "multi": true,
-        "allValue": ".+-service",
+        "allValue": ".*",
         "current": { "selected": true, "text": "All", "value": "$__all" },
         "refresh": 2,
         "sort": 1
@@ -33,13 +33,11 @@
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"$service\"}[1m])) by (job)",
-          "legendFormat": "{{ job }}"
+          "expr": "sum(rate(http_server_requests_milliseconds_count{service_name=~\"$service\"}[1m])) by (service_name)",
+          "legendFormat": "{{ service_name }}"
         }
       ],
-      "fieldConfig": {
-        "defaults": { "unit": "reqps" }
-      }
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
     },
     {
       "id": 2,
@@ -48,13 +46,11 @@
       "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"$service\", status=~\"5..\"}[1m])) by (job) / sum(rate(http_server_requests_seconds_count{job=~\"$service\"}[1m])) by (job)",
-          "legendFormat": "{{ job }}"
+          "expr": "sum(rate(http_server_requests_milliseconds_count{service_name=~\"$service\", status=~\"5..\"}[1m])) by (service_name) / sum(rate(http_server_requests_milliseconds_count{service_name=~\"$service\"}[1m])) by (service_name)",
+          "legendFormat": "{{ service_name }}"
         }
       ],
-      "fieldConfig": {
-        "defaults": { "unit": "percentunit", "min": 0, "max": 1 }
-      }
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
     },
     {
       "id": 3,
@@ -63,32 +59,28 @@
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"$service\"}[1m])) by (le, job))",
-          "legendFormat": "p99 {{ job }}"
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_milliseconds_bucket{service_name=~\"$service\"}[1m])) by (le, service_name))",
+          "legendFormat": "p99 {{ service_name }}"
         },
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"$service\"}[1m])) by (le, job))",
-          "legendFormat": "p95 {{ job }}"
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_milliseconds_bucket{service_name=~\"$service\"}[1m])) by (le, service_name))",
+          "legendFormat": "p95 {{ service_name }}"
         }
       ],
-      "fieldConfig": {
-        "defaults": { "unit": "s" }
-      }
+      "fieldConfig": { "defaults": { "unit": "ms" } }
     },
     {
       "id": 4,
-      "title": "HTTP p99 레이턴시 — URI별 (선택 서비스)",
+      "title": "HTTP p99 레이턴시 — URI별",
       "type": "timeseries",
       "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"$service\"}[1m])) by (le, uri, method, job))",
-          "legendFormat": "{{ job }} {{ method }} {{ uri }}"
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_milliseconds_bucket{service_name=~\"$service\"}[1m])) by (le, uri, method, service_name))",
+          "legendFormat": "{{ service_name }} {{ method }} {{ uri }}"
         }
       ],
-      "fieldConfig": {
-        "defaults": { "unit": "s" }
-      }
+      "fieldConfig": { "defaults": { "unit": "ms" } }
     },
     {
       "id": 5,
@@ -97,13 +89,11 @@
       "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
       "targets": [
         {
-          "expr": "hikaricp_connections_active{job=~\"$service\"}",
-          "legendFormat": "{{ job }}"
+          "expr": "sum(hikaricp_connections_active{service_name=~\"$service\"}) by (service_name)",
+          "legendFormat": "{{ service_name }}"
         }
       ],
-      "fieldConfig": {
-        "defaults": { "unit": "short" }
-      }
+      "fieldConfig": { "defaults": { "unit": "short" } }
     },
     {
       "id": 6,
@@ -112,15 +102,12 @@
       "gridPos": { "x": 8, "y": 16, "w": 8, "h": 8 },
       "targets": [
         {
-          "expr": "hikaricp_connections_pending{job=~\"$service\"}",
-          "legendFormat": "{{ job }}"
+          "expr": "sum(hikaricp_connections_pending{service_name=~\"$service\"}) by (service_name)",
+          "legendFormat": "{{ service_name }}"
         }
       ],
       "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": { "fixedColor": "red", "mode": "fixed" }
-        }
+        "defaults": { "unit": "short", "color": { "fixedColor": "red", "mode": "fixed" } }
       }
     },
     {
@@ -130,13 +117,11 @@
       "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
       "targets": [
         {
-          "expr": "increase(hikaricp_connections_timeout_total{job=~\"$service\"}[1m])",
-          "legendFormat": "{{ job }}"
+          "expr": "sum(increase(hikaricp_connections_timeout_total{service_name=~\"$service\"}[1m])) by (service_name)",
+          "legendFormat": "{{ service_name }}"
         }
       ],
-      "fieldConfig": {
-        "defaults": { "unit": "short" }
-      }
+      "fieldConfig": { "defaults": { "unit": "short" } }
     },
     {
       "id": 8,
@@ -145,13 +130,11 @@
       "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{area=\"heap\", job=~\"$service\"}",
-          "legendFormat": "{{ job }}"
+          "expr": "sum(jvm_memory_used_bytes{area=\"heap\", service_name=~\"$service\"}) by (service_name)",
+          "legendFormat": "{{ service_name }}"
         }
       ],
-      "fieldConfig": {
-        "defaults": { "unit": "bytes" }
-      }
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
     },
     {
       "id": 9,
@@ -160,13 +143,11 @@
       "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
       "targets": [
         {
-          "expr": "jvm_threads_live_threads{job=~\"$service\"}",
-          "legendFormat": "{{ job }}"
+          "expr": "sum(jvm_threads_live{service_name=~\"$service\"}) by (service_name)",
+          "legendFormat": "{{ service_name }}"
         }
       ],
-      "fieldConfig": {
-        "defaults": { "unit": "short" }
-      }
+      "fieldConfig": { "defaults": { "unit": "short" } }
     }
   ]
 }
