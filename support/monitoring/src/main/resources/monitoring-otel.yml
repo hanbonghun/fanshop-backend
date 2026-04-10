@@ -1,0 +1,31 @@
+management:
+  otlp:
+    metrics:
+      export:
+        enabled: true
+        url: http://localhost:4318/v1/metrics
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+      slo:
+        http:
+          server:
+            requests: 10, 50, 100, 200, 500, 1000, 2000
+
+# OTLP 전송 시 리소스 속성 설정 (Grafana에서 서비스 구분을 위해 필수)
+spring:
+  threads:
+    virtual:
+      enabled: true
+
+# OpenTelemetry 리소스 속성에 서비스 이름 명시적으로 추가
+management.opentelemetry.resource.attributes.service.name: ${spring.application.name:unknown-service}

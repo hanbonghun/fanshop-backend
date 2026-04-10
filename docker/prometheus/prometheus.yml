@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # OTel Collector로부터 메트릭 수집
+  - job_name: 'otelcol'
+    metrics_path: '/metrics'
+    honor_labels: true  # 앱이 보낸 레이블(service_name 등)을 Prometheus가 덮어쓰지 않게 함
+    static_configs:
+      - targets: ['otelcol:8889']

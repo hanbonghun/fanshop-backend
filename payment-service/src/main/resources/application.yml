@@ -44,6 +44,9 @@ spring:
 spring.config.activate.on-profile: local-dev
 
 spring:
+  config:
+    import:
+      - monitoring-otel.yml
   datasource:
     url: jdbc:mysql://localhost:3306/payment_db?serverTimezone=UTC&characterEncoding=UTF-8
     driver-class-name: com.mysql.cj.jdbc.Driver
