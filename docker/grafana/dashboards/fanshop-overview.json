@@ -1,0 +1,153 @@
+{
+  "title": "Fanshop — Service Overview",
+  "uid": "fanshop-overview",
+  "schemaVersion": 38,
+  "version": 3,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": {
+          "query": "label_values(jvm_memory_used_bytes, service_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP 요청 속도 (RPS)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_milliseconds_count{service_name=~\"$service\"}[1m])) by (service_name)",
+          "legendFormat": "{{ service_name }}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 2,
+      "title": "HTTP 에러율 (5xx)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_milliseconds_count{service_name=~\"$service\", status=~\"5..\"}[1m])) by (service_name) / sum(rate(http_server_requests_milliseconds_count{service_name=~\"$service\"}[1m])) by (service_name)",
+          "legendFormat": "{{ service_name }}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+    },
+    {
+      "id": 3,
+      "title": "HTTP p99 / p95 레이턴시",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_milliseconds_bucket{service_name=~\"$service\"}[1m])) by (le, service_name))",
+          "legendFormat": "p99 {{ service_name }}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_milliseconds_bucket{service_name=~\"$service\"}[1m])) by (le, service_name))",
+          "legendFormat": "p95 {{ service_name }}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 4,
+      "title": "HTTP p99 레이턴시 — URI별",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_milliseconds_bucket{service_name=~\"$service\"}[1m])) by (le, uri, method, service_name))",
+          "legendFormat": "{{ service_name }} {{ method }} {{ uri }}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 5,
+      "title": "HikariCP — Active Connections (락 점유 중)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(hikaricp_connections_active{service_name=~\"$service\"}) by (service_name)",
+          "legendFormat": "{{ service_name }}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 6,
+      "title": "HikariCP — Pending Threads (커넥션 대기 중)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(hikaricp_connections_pending{service_name=~\"$service\"}) by (service_name)",
+          "legendFormat": "{{ service_name }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "fixedColor": "red", "mode": "fixed" } }
+      }
+    },
+    {
+      "id": 7,
+      "title": "HikariCP — Connection Timeout 누적",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(increase(hikaricp_connections_timeout_total{service_name=~\"$service\"}[1m])) by (service_name)",
+          "legendFormat": "{{ service_name }}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 8,
+      "title": "JVM Heap Used",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{area=\"heap\", service_name=~\"$service\"}) by (service_name)",
+          "legendFormat": "{{ service_name }}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "id": 9,
+      "title": "JVM Threads",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(jvm_threads_live{service_name=~\"$service\"}) by (service_name)",
+          "legendFormat": "{{ service_name }}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    }
+  ]
+}

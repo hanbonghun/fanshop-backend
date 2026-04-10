@@ -22,7 +22,9 @@ public class SecurityConfig {
             throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth.requestMatchers("/api/*/members/join", "/api/*/members/login")
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/*/members/join", "/api/*/members/login", "/actuator/prometheus",
+                        "/actuator/health")
                 .permitAll()
                 .anyRequest()
                 .authenticated())

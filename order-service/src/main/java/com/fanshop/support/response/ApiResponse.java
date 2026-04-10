@@ -5,16 +5,18 @@ import com.fanshop.support.error.ErrorType;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
-@NoArgsConstructor(force = true)
+@Setter
+@NoArgsConstructor
 public class ApiResponse<S> {
 
-    private final ResultType result;
+    private ResultType result;
 
-    private final S data;
+    private S data;
 
-    private final ErrorMessage error;
+    private ErrorMessage error;
 
     private ApiResponse(ResultType result, S data, ErrorMessage error) {
         this.result = result;

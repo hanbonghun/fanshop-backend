@@ -32,6 +32,9 @@ server:
   port: 8082
 
 spring:
+  config:
+    import:
+      - monitoring-otel.yml
   jpa:
     hibernate:
       ddl-auto: update
