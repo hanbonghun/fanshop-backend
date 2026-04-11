@@ -9,13 +9,13 @@ import static org.mockito.Mockito.verify;
 
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
-import com.fanshop.messaging.OrderEventPublisher;
-import com.fanshop.messaging.event.OrderCreatedEvent;
 import com.fanshop.order.api.CreateOrderRequest;
 import com.fanshop.order.api.OrderResponse;
 import com.fanshop.order.domain.Order;
 import com.fanshop.order.domain.OrderRepository;
 import com.fanshop.order.domain.OrderStatus;
+import com.fanshop.outbox.OutboxEvent;
+import com.fanshop.outbox.OutboxEventRepository;
 import com.fanshop.support.error.CoreException;
 import com.fanshop.support.error.ErrorType;
 import com.fanshop.support.response.ApiResponse;
@@ -24,10 +24,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.HttpClientErrorException;
+
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -39,7 +43,10 @@ class OrderServiceTest {
     private ProductClient productClient;
 
     @Mock
-    private OrderEventPublisher orderEventPublisher;
+    private OutboxEventRepository outboxEventRepository;
+
+    @Spy
+    private ObjectMapper objectMapper;
 
     @InjectMocks
     private OrderService orderService;
@@ -49,7 +56,7 @@ class OrderServiceTest {
     class CreateOrder {
 
         @Test
-        @DisplayName("상품이 존재하면 PENDING 상태로 주문을 저장하고 order.created 이벤트를 발행한다")
+        @DisplayName("주문을 저장하고 ORDER_CREATED OutboxEvent를 함께 저장한다")
         void success() {
             // given
             Long memberId = 1L;
@@ -66,11 +73,14 @@ class OrderServiceTest {
             // then
             assertThat(response.getTotalPrice()).isEqualTo(58000L);
             assertThat(response.getStatus()).isEqualTo(OrderStatus.PENDING);
-            verify(orderEventPublisher).publishOrderCreated(any(OrderCreatedEvent.class));
+
+            ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+            verify(outboxEventRepository).save(captor.capture());
+            assertThat(captor.getValue().getEventType()).isEqualTo("ORDER_CREATED");
         }
 
         @Test
-        @DisplayName("존재하지 않는 상품이면 PRODUCT_NOT_FOUND 예외를 던진다")
+        @DisplayName("존재하지 않는 상품이면 PRODUCT_NOT_FOUND 예외를 던지고 outbox에 저장하지 않는다")
         void productNotFound() {
             // given
             Long memberId = 1L;
@@ -82,7 +92,7 @@ class OrderServiceTest {
                 .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
 
             verify(orderRepository, never()).save(any());
-            verify(orderEventPublisher, never()).publishOrderCreated(any());
+            verify(outboxEventRepository, never()).save(any());
         }
 
     }
