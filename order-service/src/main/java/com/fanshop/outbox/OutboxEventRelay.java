@@ -28,8 +28,7 @@ public class OutboxEventRelay {
     @Scheduled(fixedDelay = 1000)
     @Transactional
     public void relay() {
-        List<OutboxEvent> pending = outboxEventRepository
-            .findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING);
+        List<OutboxEvent> pending = outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING);
 
         for (OutboxEvent outboxEvent : pending) {
             try {
@@ -37,8 +36,7 @@ public class OutboxEventRelay {
                 outboxEvent.markPublished();
             }
             catch (Exception e) {
-                log.error("Outbox 이벤트 발행 실패 — id={}, type={}", outboxEvent.getId(),
-                        outboxEvent.getEventType(), e);
+                log.error("Outbox 이벤트 발행 실패 — id={}, type={}", outboxEvent.getId(), outboxEvent.getEventType(), e);
             }
         }
     }
