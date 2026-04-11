@@ -1,8 +1,15 @@
 package com.fanshop.messaging;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.fanshop.common.idempotency.ProcessedEvent;
+import com.fanshop.common.idempotency.ProcessedEventRepository;
 import com.fanshop.messaging.event.InventoryRejectedEvent;
 import com.fanshop.messaging.event.InventoryReservedEvent;
 import com.fanshop.messaging.event.OrderCreatedEvent;
@@ -27,6 +34,9 @@ class OrderCreatedListenerTest {
     @Mock
     private StockEventPublisher stockEventPublisher;
 
+    @Mock
+    private ProcessedEventRepository processedEventRepository;
+
     @InjectMocks
     private OrderCreatedListener orderCreatedListener;
 
@@ -39,6 +49,7 @@ class OrderCreatedListenerTest {
         void success() {
             // given
             OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
+            given(processedEventRepository.existsByEventIdAndEventType("1", "ORDER_CREATED")).willReturn(false);
 
             // when
             orderCreatedListener.handleOrderCreated(event);
@@ -53,6 +64,7 @@ class OrderCreatedListenerTest {
         void fail() {
             // given
             OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
+            given(processedEventRepository.existsByEventIdAndEventType("1", "ORDER_CREATED")).willReturn(false);
             CoreException exception = new CoreException(ErrorType.INSUFFICIENT_STOCK, 3L);
             doThrow(exception).when(productService).softReserveStock(3L, 4);
 
@@ -62,6 +74,43 @@ class OrderCreatedListenerTest {
             // then
             verify(stockEventPublisher)
                 .publishInventoryRejected(new InventoryRejectedEvent(1L, exception.getMessage()));
+        }
+
+    }
+
+    @Nested
+    @DisplayName("handleOrderCreated — 멱등성")
+    class Idempotency {
+
+        @Test
+        @DisplayName("이미 처리된 orderId면 재고 선점 없이 무시한다")
+        void alreadyProcessed() {
+            // given
+            OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
+            given(processedEventRepository.existsByEventIdAndEventType("1", "ORDER_CREATED")).willReturn(true);
+
+            // when
+            orderCreatedListener.handleOrderCreated(event);
+
+            // then
+            verify(productService, never()).softReserveStock(anyLong(), anyInt());
+            verify(stockEventPublisher, never()).publishInventoryReserved(any());
+            verify(stockEventPublisher, never()).publishInventoryRejected(any());
+        }
+
+        @Test
+        @DisplayName("처음 처리되는 이벤트면 ProcessedEvent를 저장한다")
+        void saveProcessedEvent() {
+            // given
+            OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
+            given(processedEventRepository.existsByEventIdAndEventType("1", "ORDER_CREATED")).willReturn(false);
+
+            // when
+            orderCreatedListener.handleOrderCreated(event);
+
+            // then
+            verify(processedEventRepository).save(any(ProcessedEvent.class));
+            verify(productService).softReserveStock(3L, 4);
         }
 
     }
