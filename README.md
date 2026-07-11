@@ -55,24 +55,27 @@ CONFIRMED    + 재고 복원
 **이벤트 발행 신뢰성 ([#22](https://github.com/hanbonghun/fanshop-backend/pull/22))**
 Order 저장 후 Kafka 발행 직전에 크래시나면 주문이 PENDING에서 영원히 멈추는 문제.
 Outbox Pattern으로 해결 — `outbox_events` 테이블에 Order와 같은 트랜잭션으로 저장하고, 별도 릴레이가 1초마다 발행한다.
+릴레이가 Kafka 발행 후 상태 갱신 전에 죽으면 같은 이벤트를 재발행할 수 있으므로(at-least-once), 소비자의 멱등 처리를 전제로 설계했다.
 
 **수신 멱등성 ([#20](https://github.com/hanbonghun/fanshop-backend/pull/20))**
-Kafka at-least-once delivery로 같은 메시지가 두 번 올 수 있다.
-`processed_events(event_id, event_type)` 복합 unique 제약으로 중복 수신 차단.
+Kafka at-least-once delivery와 Outbox 릴레이 재발행으로 같은 메시지가 두 번 올 수 있다.
+order/product는 `processed_events(event_id, event_type)` 복합 unique 제약으로, payment는 주문 ID 기준 존재 검사로 중복 수신 차단.
 
 **분산 추적 연결 ([#17](https://github.com/hanbonghun/fanshop-backend/pull/17))**
 Grafana Tempo에서 Order → Payment → Order 흐름이 서비스마다 traceId가 달라 끊기는 문제.
 `spring.cloud.stream.kafka.binder.enable-observation: true` 설정으로 Kafka 헤더에 trace context 자동 전파.
 
 **Virtual Threads ([#18](https://github.com/hanbonghun/fanshop-backend/pull/18))**
-500 VU 스파이크 테스트에서 Virtual Threads 적용 후 처리량 +49%, p95 응답시간 -51% 확인.
+스파이크 테스트에서 Virtual Threads 적용 후 처리량 13,701건 → 20,378건/30초(+49%), p95 응답시간 2,024ms → 991ms(-51%) 확인.
+- 조건: `POST /orders` 단일 API, 0→500 VU 5초 램프 후 20초 유지(총 30초), 재고를 충분히 설정해 전 요청이 DB write + Kafka 발행 경로를 통과. p95는 k6 `http_req_duration` 기준
+- 변경은 `spring.threads.virtual.enabled: true` 한 줄이며 HikariCP 풀(기본 10) 등 나머지 조건 동일 — 개선분은 Tomcat 스레드 풀(200) 포화로 인한 큐 대기 제거에서 나왔고, 커넥션 풀이 다음 병목으로 남아 있다
 
 ## 한계
 
 - Outbox relay는 1초 주기로 polling하기 때문에 SAGA 시작까지 최대 1초 지연이 생긴다
 - 결제 서비스는 실제 PG 연동 없이 성공/실패를 시뮬레이션한다
 - 서킷 브레이커 미적용 — 동기 호출(`ProductClient`) 실패 시 빠른 차단이 없다
-- 실제 배포는 단일 프로세스다. 분산 환경을 **가정한** 구조다
+- 각 서비스는 별도 프로세스(JVM)로 실행되지만, 다중 노드 클러스터가 아닌 단일 개발 장비에서 검증했다
 
 ## 기술 스택
 
