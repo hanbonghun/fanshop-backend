@@ -77,7 +77,7 @@ class OutboxEventRelayTest {
         }
 
         @Test
-        @DisplayName("Kafka 발행 실패 시 이벤트가 PENDING 상태로 유지된다")
+        @DisplayName("Kafka 발행 실패 시 재시도 횟수를 기록하고 PENDING 상태로 유지된다")
         void publishFails() throws Exception {
             // given
             OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 1, 50000L);
@@ -93,6 +93,29 @@ class OutboxEventRelayTest {
 
             // then
             assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+            assertThat(outboxEvent.getRetryCount()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("최대 재시도 횟수 도달 시 FAILED로 격리되어 다음 폴링 대상에서 제외된다")
+        void isolateAfterMaxAttempts() throws Exception {
+            // given
+            OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 1, 50000L);
+            String payload = objectMapper.writeValueAsString(event);
+            OutboxEvent outboxEvent = new OutboxEvent("ORDER_CREATED", payload);
+
+            given(outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
+                .willReturn(List.of(outboxEvent));
+            doThrow(new RuntimeException("Kafka 연결 실패")).when(orderEventPublisher).publishOrderCreated(any());
+
+            // when
+            for (int i = 0; i < OutboxEventRelay.MAX_ATTEMPTS; i++) {
+                outboxEventRelay.relay();
+            }
+
+            // then
+            assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.FAILED);
+            assertThat(outboxEvent.getRetryCount()).isEqualTo(OutboxEventRelay.MAX_ATTEMPTS);
         }
 
     }

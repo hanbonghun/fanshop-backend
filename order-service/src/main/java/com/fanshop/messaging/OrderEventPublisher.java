@@ -16,7 +16,9 @@ public class OrderEventPublisher {
     private final StreamBridge streamBridge;
 
     public void publishOrderCreated(OrderCreatedEvent event) {
-        streamBridge.send(ORDER_CREATED_BINDING, event);
+        if (!streamBridge.send(ORDER_CREATED_BINDING, event)) {
+            throw new IllegalStateException("order.created 발행 실패 — orderId=" + event.orderId());
+        }
         log.info("Published order.created: orderId={}", event.orderId());
     }
 

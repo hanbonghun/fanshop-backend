@@ -19,6 +19,8 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class OutboxEventRelay {
 
+    static final int MAX_ATTEMPTS = 5;
+
     private final OutboxEventRepository outboxEventRepository;
 
     private final OrderEventPublisher orderEventPublisher;
@@ -36,7 +38,15 @@ public class OutboxEventRelay {
                 outboxEvent.markPublished();
             }
             catch (Exception e) {
-                log.error("Outbox 이벤트 발행 실패 — id={}, type={}", outboxEvent.getId(), outboxEvent.getEventType(), e);
+                outboxEvent.recordFailure(MAX_ATTEMPTS);
+                if (outboxEvent.getStatus() == OutboxEventStatus.FAILED) {
+                    log.error("Outbox 이벤트 격리(FAILED) — 수동 복구 필요, id={}, type={}, retryCount={}", outboxEvent.getId(),
+                            outboxEvent.getEventType(), outboxEvent.getRetryCount(), e);
+                }
+                else {
+                    log.error("Outbox 이벤트 발행 실패 — id={}, type={}, retryCount={}/{}", outboxEvent.getId(),
+                            outboxEvent.getEventType(), outboxEvent.getRetryCount(), MAX_ATTEMPTS, e);
+                }
             }
         }
     }

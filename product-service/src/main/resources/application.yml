@@ -14,6 +14,10 @@ spring:
     stream:
       default:
         contentType: application/json
+        consumer:
+          maxAttempts: 3
+          backOffInitialInterval: 1000
+          backOffMaxInterval: 10000
       bindings:
         orderCreatedConsumer-in-0:
           destination: order.created
@@ -29,6 +33,9 @@ spring:
           destination: payment.failed
           group: product-service
       kafka:
+        default:
+          consumer:
+            enableDlq: true
         binder:
           brokers: localhost:9092
 

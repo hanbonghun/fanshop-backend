@@ -36,6 +36,9 @@ public class OutboxEvent {
     private OutboxEventStatus status;
 
     @Column(nullable = false)
+    private int retryCount;
+
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     private LocalDateTime publishedAt;
@@ -44,12 +47,20 @@ public class OutboxEvent {
         this.eventType = eventType;
         this.payload = payload;
         this.status = OutboxEventStatus.PENDING;
+        this.retryCount = 0;
         this.createdAt = LocalDateTime.now();
     }
 
     public void markPublished() {
         this.status = OutboxEventStatus.PUBLISHED;
         this.publishedAt = LocalDateTime.now();
+    }
+
+    public void recordFailure(int maxAttempts) {
+        this.retryCount++;
+        if (this.retryCount >= maxAttempts) {
+            this.status = OutboxEventStatus.FAILED;
+        }
     }
 
 }

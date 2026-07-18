@@ -61,6 +61,12 @@ Outbox Pattern으로 해결 — `outbox_events` 테이블에 Order와 같은 트
 Kafka at-least-once delivery와 Outbox 릴레이 재발행으로 같은 메시지가 두 번 올 수 있다.
 order/product는 `processed_events(event_id, event_type)` 복합 unique 제약으로, payment는 주문 ID 기준 존재 검사로 중복 수신 차단.
 
+**소비 실패 격리 — DLQ와 Outbox FAILED**
+poison message(역직렬화 불가, 처리 중 영구 예외)가 들어오면 기본 동작은 제한 재시도 후 로그만 남기고 오프셋을 넘긴다 — 실패가 어디에도 안 남고 유실된다.
+컨슈머는 바인더 재시도(3회, 1초 시작 백오프) 소진 후 `error.<destination>.<group>` DLQ 토픽으로 격리하도록 변경. 실패 원인이 exception 헤더와 함께 토픽에 남아 조회/재투입이 가능하다.
+Outbox 릴레이도 같은 원리 적용 — 발행 5회 실패 시 FAILED로 전환해 폴링 대상에서 제외한다. 이전에는 실패 이벤트가 PENDING으로 남아 1초마다 무한 재시도하며 로그를 밀어냈다.
+재시도 판정이 성립하려면 발행 실패가 릴레이에 예외로 드러나야 한다. `StreamBridge.send` 반환값을 검사하고 producer `sync: true`로 브로커 ack까지 대기시켜, 비동기 전송 실패가 PUBLISHED로 오기록되는 경로를 막았다.
+
 **분산 추적 연결 ([#17](https://github.com/hanbonghun/fanshop-backend/pull/17))**
 Grafana Tempo에서 Order → Payment → Order 흐름이 서비스마다 traceId가 달라 끊기는 문제.
 `spring.cloud.stream.kafka.binder.enable-observation: true` 설정으로 Kafka 헤더에 trace context 자동 전파.
@@ -75,6 +81,7 @@ Grafana Tempo에서 Order → Payment → Order 흐름이 서비스마다 traceI
 - Outbox relay는 1초 주기로 polling하기 때문에 SAGA 시작까지 최대 1초 지연이 생긴다
 - 결제 서비스는 실제 PG 연동 없이 성공/실패를 시뮬레이션한다
 - 서킷 브레이커 미적용 — 동기 호출(`ProductClient`) 실패 시 빠른 차단이 없다
+- DLQ 재처리 자동화 없음 — 격리까지만 하고, DLQ 토픽과 FAILED Outbox의 재투입은 수동이다
 - 각 서비스는 별도 프로세스(JVM)로 실행되지만, 다중 노드 클러스터가 아닌 단일 개발 장비에서 검증했다
 
 ## 기술 스택
