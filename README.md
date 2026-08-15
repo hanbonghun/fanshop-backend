@@ -65,7 +65,7 @@ order/product는 `processed_events(event_id, event_type)` 복합 unique 제약�
 poison message(역직렬화 불가, 처리 중 영구 예외)가 들어오면 기본 동작은 제한 재시도 후 로그만 남기고 오프셋을 넘긴다 — 실패가 어디에도 안 남고 유실된다.
 컨슈머는 바인더 재시도(3회, 1초 시작 백오프) 소진 후 `error.<destination>.<group>` DLQ 토픽으로 격리하도록 변경. 실패 원인이 exception 헤더와 함께 토픽에 남아 조회/재투입이 가능하다.
 Outbox 릴레이도 같은 원리 적용 — 발행 5회 실패 시 FAILED로 전환해 폴링 대상에서 제외한다. 이전에는 실패 이벤트가 PENDING으로 남아 1초마다 무한 재시도하며 로그를 밀어냈다.
-재시도 판정이 성립하려면 발행 실패가 릴레이에 예외로 드러나야 한다. `StreamBridge.send` 반환값을 검사하고 producer `sync: true`로 브로커 ack까지 대기시켜, 비동기 전송 실패가 PUBLISHED로 오기록되는 경로를 막았다.
+재시도 판정이 성립하려면 발행 실패가 릴레이에 예외로 드러나야 한다. 브로커 ack 실패는 producer `sync: true`가 `future.get()`에서 예외로 드러내고, 채널 단계 거부는 `send()`의 `false` 반환으로 드러난다. 두 경로 모두 릴레이의 `catch`로 들어가 재시도·격리를 탄다.
 
 **분산 추적 연결 ([#17](https://github.com/hanbonghun/fanshop-backend/pull/17))**
 Grafana Tempo에서 Order → Payment → Order 흐름이 서비스마다 traceId가 달라 끊기는 문제.
@@ -89,6 +89,8 @@ DB는 테스트용으로 격리해뒀는데(`local` 프로파일 → H2) Kafka�
 - 서킷 브레이커 미적용 — 동기 호출(`ProductClient`) 실패 시 빠른 차단이 없다
 - DLQ 재처리 자동화 없음 — 격리까지만 하고, DLQ 토픽과 FAILED Outbox의 재투입은 수동이다
 - 각 서비스는 별도 프로세스(JVM)로 실행되지만, 다중 노드 클러스터가 아닌 단일 개발 장비에서 검증했다
+- `outbox_events` 테이블은 `ddl-auto`로 생성되며 `local`/`local-dev` 프로파일에서만 동작한다. 실제 배포에는 마이그레이션 도구가 필요하다
+- 릴레이의 `FOR UPDATE SKIP LOCKED`는 MySQL 8.0.1 이상을 요구한다
 
 ## 기술 스택
 

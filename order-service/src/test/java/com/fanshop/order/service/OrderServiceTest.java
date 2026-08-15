@@ -3,19 +3,20 @@ package com.fanshop.order.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.fanshop.client.ProductClient;
 import com.fanshop.client.ProductResponse;
+import com.fanshop.messaging.event.OrderCreatedEvent;
 import com.fanshop.order.api.CreateOrderRequest;
 import com.fanshop.order.api.OrderResponse;
 import com.fanshop.order.domain.Order;
 import com.fanshop.order.domain.OrderRepository;
 import com.fanshop.order.domain.OrderStatus;
-import com.fanshop.outbox.OutboxEvent;
-import com.fanshop.outbox.OutboxEventRepository;
+import com.fanshop.outbox.OutboxRecorder;
 import com.fanshop.support.error.CoreException;
 import com.fanshop.support.error.ErrorType;
 import com.fanshop.support.response.ApiResponse;
@@ -27,11 +28,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.HttpClientErrorException;
-
-import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -43,10 +41,7 @@ class OrderServiceTest {
     private ProductClient productClient;
 
     @Mock
-    private OutboxEventRepository outboxEventRepository;
-
-    @Spy
-    private ObjectMapper objectMapper;
+    private OutboxRecorder outboxRecorder;
 
     @InjectMocks
     private OrderService orderService;
@@ -74,9 +69,9 @@ class OrderServiceTest {
             assertThat(response.getTotalPrice()).isEqualTo(58000L);
             assertThat(response.getStatus()).isEqualTo(OrderStatus.PENDING);
 
-            ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
-            verify(outboxEventRepository).save(captor.capture());
-            assertThat(captor.getValue().getEventType()).isEqualTo("ORDER_CREATED");
+            ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+            verify(outboxRecorder).record(eq("ORDER_CREATED"), payloadCaptor.capture());
+            assertThat(payloadCaptor.getValue()).isInstanceOf(OrderCreatedEvent.class);
         }
 
         @Test
@@ -92,7 +87,7 @@ class OrderServiceTest {
                 .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
 
             verify(orderRepository, never()).save(any());
-            verify(outboxEventRepository, never()).save(any());
+            verify(outboxRecorder, never()).record(any(), any());
         }
 
     }

@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fanshop.messaging.StockEventPublisher;
@@ -121,6 +123,26 @@ class OutboxEventRelayTest {
 
         verify(stockEventPublisher, never()).publishInventoryReserved(any());
         verify(stockEventPublisher, never()).publishInventoryRejected(any());
+    }
+
+    @Test
+    @DisplayName("연속 발행 실패가 임계치에 도달하면 나머지 배치는 시도하지 않고 이번 틱을 중단한다")
+    void breaksAfterConsecutiveFailures() {
+        List<OutboxEvent> batch = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            InventoryReservedEvent event = new InventoryReservedEvent((long) i, 2L, 3L, 4, 50000L);
+            batch.add(new OutboxEvent("INVENTORY_RESERVED", objectMapper.writeValueAsString(event)));
+        }
+        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(batch);
+        doThrow(new RuntimeException("Kafka 연결 실패")).when(stockEventPublisher).publishInventoryReserved(any());
+
+        outboxEventRelay.relay();
+
+        verify(stockEventPublisher, times(OutboxEventRelay.MAX_CONSECUTIVE_FAILURES)).publishInventoryReserved(any());
+        assertThat(batch.subList(0, OutboxEventRelay.MAX_CONSECUTIVE_FAILURES))
+            .allSatisfy(e -> assertThat(e.getRetryCount()).isEqualTo(1));
+        assertThat(batch.subList(OutboxEventRelay.MAX_CONSECUTIVE_FAILURES, 5))
+            .allSatisfy(e -> assertThat(e.getRetryCount()).isZero());
     }
 
 }

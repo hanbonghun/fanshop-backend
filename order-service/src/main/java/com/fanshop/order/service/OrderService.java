@@ -8,8 +8,7 @@ import com.fanshop.order.api.OrderResponse;
 import com.fanshop.order.domain.Order;
 import com.fanshop.order.domain.OrderRepository;
 import com.fanshop.order.domain.OrderStatus;
-import com.fanshop.outbox.OutboxEvent;
-import com.fanshop.outbox.OutboxEventRepository;
+import com.fanshop.outbox.OutboxRecorder;
 import com.fanshop.support.error.CoreException;
 import com.fanshop.support.error.ErrorType;
 
@@ -19,8 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
-
-import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Service
@@ -32,9 +29,7 @@ public class OrderService {
 
     private final ProductClient productClient;
 
-    private final OutboxEventRepository outboxEventRepository;
-
-    private final ObjectMapper objectMapper;
+    private final OutboxRecorder outboxRecorder;
 
     @Transactional
     public OrderResponse createOrder(Long memberId, CreateOrderRequest request) {
@@ -46,7 +41,7 @@ public class OrderService {
 
         OrderCreatedEvent event = new OrderCreatedEvent(savedOrder.getId(), memberId, product.getId(),
                 request.getQuantity(), totalPrice);
-        outboxEventRepository.save(new OutboxEvent("ORDER_CREATED", serialize(event)));
+        outboxRecorder.record("ORDER_CREATED", event);
 
         log.info("Order created and outbox event saved — orderId={}", savedOrder.getId());
         return OrderResponse.from(savedOrder);
@@ -85,15 +80,6 @@ public class OrderService {
     private Order findOrder(Long orderId) {
         return orderRepository.findById(orderId)
             .orElseThrow(() -> new CoreException(ErrorType.ORDER_NOT_FOUND, orderId));
-    }
-
-    private String serialize(Object event) {
-        try {
-            return objectMapper.writeValueAsString(event);
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Outbox 이벤트 직렬화 실패", e);
-        }
     }
 
 }
