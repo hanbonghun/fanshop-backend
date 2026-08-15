@@ -1,5 +1,6 @@
 package com.fanshop.outbox;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.fanshop.messaging.OrderEventPublisher;
@@ -22,6 +23,8 @@ public class OutboxEventRelay {
     static final int MAX_ATTEMPTS = 5;
 
     static final int BATCH_SIZE = 100;
+
+    static final int RETENTION_DAYS = 7;
 
     private final OutboxEventRepository outboxEventRepository;
 
@@ -72,6 +75,24 @@ public class OutboxEventRelay {
         catch (Exception e) {
             throw new RuntimeException("Outbox 이벤트 역직렬화 실패 — type=" + type.getSimpleName(), e);
         }
+    }
+
+    /**
+     * 발행에 성공한 이벤트는 보관 기간이 지나면 삭제한다. FAILED는 수동 복구 대상이라 남긴다.
+     */
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void purgePublished() {
+        purgeBefore(LocalDateTime.now().minusDays(RETENTION_DAYS));
+    }
+
+    @Transactional
+    public int purgeBefore(LocalDateTime threshold) {
+        int deleted = outboxEventRepository.deleteByStatusAndPublishedAtBefore(OutboxEventStatus.PUBLISHED, threshold);
+        if (deleted > 0) {
+            log.info("Outbox 정리 — PUBLISHED {}건 삭제 (기준 {})", deleted, threshold);
+        }
+        return deleted;
     }
 
 }

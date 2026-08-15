@@ -1,5 +1,6 @@
 package com.fanshop.outbox;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,5 +21,7 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> 
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
     List<OutboxEvent> findPendingBatch(@Param("batchSize") int batchSize);
+
+    int deleteByStatusAndPublishedAtBefore(OutboxEventStatus status, LocalDateTime threshold);
 
 }
