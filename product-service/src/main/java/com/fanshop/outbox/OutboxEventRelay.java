@@ -77,7 +77,7 @@ public class OutboxEventRelay {
                 .publishInventoryReserved(deserialize(outboxEvent.getPayload(), InventoryReservedEvent.class));
             case "INVENTORY_REJECTED" -> stockEventPublisher
                 .publishInventoryRejected(deserialize(outboxEvent.getPayload(), InventoryRejectedEvent.class));
-            default -> log.warn("알 수 없는 이벤트 타입 — type={}", outboxEvent.getEventType());
+            default -> throw new IllegalStateException("알 수 없는 이벤트 타입 — type=" + outboxEvent.getEventType());
         }
     }
 
