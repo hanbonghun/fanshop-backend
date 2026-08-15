@@ -8,7 +8,7 @@ import com.fanshop.messaging.event.InventoryRejectedEvent;
 import com.fanshop.messaging.event.InventoryReservedEvent;
 import com.fanshop.messaging.event.OrderCreatedEvent;
 import com.fanshop.product.service.ProductService;
-import com.fanshop.support.error.CoreException;
+import com.fanshop.product.service.ReservationResult;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,14 +43,14 @@ public class OrderCreatedListener {
         processedEventRepository.save(new ProcessedEvent(eventId, EVENT_TYPE));
 
         log.info("Received order.created — orderId={}, productId={}", event.orderId(), event.productId());
-        try {
-            productService.softReserveStock(event.productId(), event.quantity());
-            stockEventPublisher.publishInventoryReserved(new InventoryReservedEvent(event.orderId(), event.memberId(),
-                    event.productId(), event.quantity(), event.totalPrice()));
-        }
-        catch (CoreException e) {
-            log.warn("Inventory reservation failed — orderId={}, reason={}", event.orderId(), e.getMessage());
-            stockEventPublisher.publishInventoryRejected(new InventoryRejectedEvent(event.orderId(), e.getMessage()));
+        switch (productService.softReserveStock(event.productId(), event.quantity())) {
+            case ReservationResult.Reserved() ->
+                stockEventPublisher.publishInventoryReserved(new InventoryReservedEvent(event.orderId(),
+                        event.memberId(), event.productId(), event.quantity(), event.totalPrice()));
+            case ReservationResult.Rejected(String reason) -> {
+                log.warn("Inventory reservation rejected — orderId={}, reason={}", event.orderId(), reason);
+                stockEventPublisher.publishInventoryRejected(new InventoryRejectedEvent(event.orderId(), reason));
+            }
         }
     }
 
