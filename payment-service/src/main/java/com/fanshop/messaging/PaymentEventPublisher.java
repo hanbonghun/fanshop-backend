@@ -21,12 +21,16 @@ public class PaymentEventPublisher {
     private final StreamBridge streamBridge;
 
     public void publishPaymentCompleted(PaymentCompletedEvent event) {
-        streamBridge.send(PAYMENT_COMPLETED_BINDING, event);
+        if (!streamBridge.send(PAYMENT_COMPLETED_BINDING, event)) {
+            throw new IllegalStateException("payment.completed 발행 실패 — orderId=" + event.orderId());
+        }
         log.info("Published payment.completed — orderId={}", event.orderId());
     }
 
     public void publishPaymentFailed(PaymentFailedEvent event) {
-        streamBridge.send(PAYMENT_FAILED_BINDING, event);
+        if (!streamBridge.send(PAYMENT_FAILED_BINDING, event)) {
+            throw new IllegalStateException("payment.failed 발행 실패 — orderId=" + event.orderId());
+        }
         log.info("Published payment.failed — orderId={}, reason={}", event.orderId(), event.reason());
     }
 

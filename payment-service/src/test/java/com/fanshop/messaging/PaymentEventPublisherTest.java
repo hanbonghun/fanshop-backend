@@ -1,5 +1,7 @@
 package com.fanshop.messaging;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.fanshop.messaging.event.PaymentCompletedEvent;
@@ -26,6 +28,7 @@ class PaymentEventPublisherTest {
     @DisplayName("payment.completed 이벤트를 output binding으로 발행한다")
     void publishPaymentCompleted() {
         PaymentCompletedEvent event = new PaymentCompletedEvent(1L, 2L, 3L, 1);
+        given(streamBridge.send("paymentCompleted-out-0", event)).willReturn(true);
 
         paymentEventPublisher.publishPaymentCompleted(event);
 
@@ -36,10 +39,31 @@ class PaymentEventPublisherTest {
     @DisplayName("payment.failed 이벤트를 output binding으로 발행한다")
     void publishPaymentFailed() {
         PaymentFailedEvent event = new PaymentFailedEvent(1L, 2L, 3L, 1, "잔액 부족");
+        given(streamBridge.send("paymentFailed-out-0", event)).willReturn(true);
 
         paymentEventPublisher.publishPaymentFailed(event);
 
         verify(streamBridge).send("paymentFailed-out-0", event);
+    }
+
+    @Test
+    @DisplayName("payment.completed 발행이 거부되면 예외를 던진다")
+    void publishPaymentCompletedThrowsWhenRejected() {
+        PaymentCompletedEvent event = new PaymentCompletedEvent(1L, 2L, 3L, 1);
+        given(streamBridge.send("paymentCompleted-out-0", event)).willReturn(false);
+
+        assertThatThrownBy(() -> paymentEventPublisher.publishPaymentCompleted(event))
+            .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("payment.failed 발행이 거부되면 예외를 던진다")
+    void publishPaymentFailedThrowsWhenRejected() {
+        PaymentFailedEvent event = new PaymentFailedEvent(1L, 2L, 3L, 1, "잔액 부족");
+        given(streamBridge.send("paymentFailed-out-0", event)).willReturn(false);
+
+        assertThatThrownBy(() -> paymentEventPublisher.publishPaymentFailed(event))
+            .isInstanceOf(IllegalStateException.class);
     }
 
 }
