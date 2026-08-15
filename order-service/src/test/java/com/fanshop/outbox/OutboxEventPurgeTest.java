@@ -35,7 +35,7 @@ class OutboxEventPurgeTest extends ContextTest {
     }
 
     @Test
-    @DisplayName("발행 기준 시점이 미래인 경우 PUBLISHED도 삭제하지 않는다")
+    @DisplayName("보관 기간이 지나지 않은 PUBLISHED는 삭제하지 않는다")
     void respectsAgeThreshold() {
         OutboxEvent published = new OutboxEvent("ORDER_CREATED", "{}");
         published.markPublished();

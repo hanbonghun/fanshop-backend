@@ -77,6 +77,8 @@ public class OutboxEventRelay {
                 .publishInventoryReserved(deserialize(outboxEvent.getPayload(), InventoryReservedEvent.class));
             case "INVENTORY_REJECTED" -> stockEventPublisher
                 .publishInventoryRejected(deserialize(outboxEvent.getPayload(), InventoryRejectedEvent.class));
+            // 로그만 남기고 정상 반환하면 호출부에서 markPublished()가 실행되어, Kafka에 전달되지 않은 행이
+            // PUBLISHED로 기록된다. 예외로 던져 recordFailure → FAILED 격리 경로를 타게 한다.
             default -> throw new IllegalStateException("알 수 없는 이벤트 타입 — type=" + outboxEvent.getEventType());
         }
     }
