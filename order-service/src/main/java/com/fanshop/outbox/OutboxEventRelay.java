@@ -21,16 +21,19 @@ public class OutboxEventRelay {
 
     static final int MAX_ATTEMPTS = 5;
 
+    static final int BATCH_SIZE = 100;
+
     private final OutboxEventRepository outboxEventRepository;
 
     private final OrderEventPublisher orderEventPublisher;
 
     private final ObjectMapper objectMapper;
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelayString = "${outbox.relay.fixed-delay:1000}",
+            initialDelayString = "${outbox.relay.initial-delay:0}")
     @Transactional
     public void relay() {
-        List<OutboxEvent> pending = outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING);
+        List<OutboxEvent> pending = outboxEventRepository.findPendingBatch(BATCH_SIZE);
 
         for (OutboxEvent outboxEvent : pending) {
             try {
