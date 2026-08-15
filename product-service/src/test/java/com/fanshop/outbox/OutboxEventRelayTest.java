@@ -3,11 +3,13 @@ package com.fanshop.outbox;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
 
 import com.fanshop.messaging.StockEventPublisher;
+import com.fanshop.messaging.event.InventoryRejectedEvent;
 import com.fanshop.messaging.event.InventoryReservedEvent;
 
 import org.junit.jupiter.api.DisplayName;
@@ -48,6 +50,35 @@ class OutboxEventRelayTest {
 
         verify(stockEventPublisher).publishInventoryReserved(event);
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
+        assertThat(outboxEvent.getPublishedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("INVENTORY_REJECTED를 발행하고 PUBLISHED로 마킹한다")
+    void publishesRejected() {
+        InventoryRejectedEvent event = new InventoryRejectedEvent(1L, "재고 부족");
+        OutboxEvent outboxEvent = new OutboxEvent("INVENTORY_REJECTED", objectMapper.writeValueAsString(event));
+        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
+            .willReturn(List.of(outboxEvent));
+
+        outboxEventRelay.relay();
+
+        verify(stockEventPublisher).publishInventoryRejected(event);
+        assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
+        assertThat(outboxEvent.getPublishedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("알 수 없는 이벤트 타입은 격리된다")
+    void isolatesUnknownEventType() {
+        OutboxEvent outboxEvent = new OutboxEvent("UNKNOWN_TYPE", "{}");
+        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
+            .willReturn(List.of(outboxEvent));
+
+        outboxEventRelay.relay();
+
+        assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        assertThat(outboxEvent.getRetryCount()).isEqualTo(1);
     }
 
     @Test
@@ -64,6 +95,32 @@ class OutboxEventRelayTest {
         }
 
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("단일 발행 실패 후 행은 PENDING 상태를 유지한다")
+    void keepsRowPendingAfterSingleFailure() {
+        InventoryReservedEvent event = new InventoryReservedEvent(1L, 2L, 3L, 4, 50000L);
+        OutboxEvent outboxEvent = new OutboxEvent("INVENTORY_RESERVED", objectMapper.writeValueAsString(event));
+        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
+            .willReturn(List.of(outboxEvent));
+        doThrow(new RuntimeException("Kafka 연결 실패")).when(stockEventPublisher).publishInventoryReserved(any());
+
+        outboxEventRelay.relay();
+
+        assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        assertThat(outboxEvent.getRetryCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("대기 중인 이벤트가 없으면 발행자를 호출하지 않는다")
+    void doesNotInvokePublisherWhenNoPendingEvents() {
+        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of());
+
+        outboxEventRelay.relay();
+
+        verify(stockEventPublisher, never()).publishInventoryReserved(any());
+        verify(stockEventPublisher, never()).publishInventoryRejected(any());
     }
 
 }
