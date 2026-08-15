@@ -7,7 +7,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'spring-boot-java-template'
+rootProject.name = 'fanshop-backend'
 
 include 'member-service'
 include 'product-service'
@@ -16,4 +16,3 @@ include 'payment-service'
 include 'tests:api-docs'
 include 'support:logging'
 include 'support:monitoring'
-include 'clients:client-example'
