@@ -114,6 +114,22 @@ class OutboxEventRelayTest {
             assertThat(outboxEvent.getRetryCount()).isEqualTo(OutboxEventRelay.MAX_ATTEMPTS);
         }
 
+        @Test
+        @DisplayName("알 수 없는 이벤트 타입은 PUBLISHED로 기록되지 않고 격리 경로를 탄다")
+        void unknownEventTypeIsNotPublished() {
+            // given
+            OutboxEvent outboxEvent = new OutboxEvent("UNKNOWN_TYPE", "{}");
+            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of(outboxEvent));
+
+            // when
+            outboxEventRelay.relay();
+
+            // then
+            assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+            assertThat(outboxEvent.getRetryCount()).isEqualTo(1);
+            verify(orderEventPublisher, never()).publishOrderCreated(any());
+        }
+
     }
 
 }
