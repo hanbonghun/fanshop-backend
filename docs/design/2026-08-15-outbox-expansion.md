@@ -65,7 +65,12 @@ product-service의 `reservedQuantity`는 영원히 해제되지 않는다. 한�
   Outbox는 JPA 엔티티를 포함한다. 공유 라이브러리에 도메인 데이터 모델이 들어가면 한 서비스의
   스키마 변경이 다른 서비스를 끌고 간다.
 
-**감수하는 것** — 릴레이 로직(재시도·격리)이 3벌 중복된다. 약 70줄이고 변경 빈도가 낮다고 판단했다.
+**감수하는 것** — 릴레이 로직(재시도·격리)이 3벌 중복된다. 애초 추정은 약 70줄, 변경 빈도가 낮다는
+것이었다. 완성된 브랜치 기준으로 다시 재보니 둘 다 틀렸다 — 실제 중복은 프로덕션 코드 약 200줄, 테스트
+코드 약 350줄이고, 변경 빈도도 낮지 않았다. 이 작업 하나 안에서만 미인식 이벤트 타입 처리가 세 번
+바뀌었다 — product, payment, order 각각에 따로 적용해야 했다. 추정이 두 항목 모두 틀렸다는 점은
+기록해두지만, 결정 자체(공통 모듈로 추출하지 않는다)는 바뀌지 않는다 — 근거는 여전히 유효하고, 이
+비용은 감수 범위 안에 있다고 본다.
 
 ### 결정 2 — 기존 구현의 약점을 개선한 형태로 통일한다
 
@@ -137,6 +142,40 @@ sealed interface ReservationResult {
 `@Transactional(noRollbackFor = CoreException.class)`도 가능하지만, 예외를 흐름 제어로
 계속 쓰는 데다 롤백 규칙이 애너테이션에 숨겨져 채택하지 않았다.
 
+### 리스너를 `@Configuration` + 핸들러 `@Component`로 분리한 이유
+
+위 코드 예시는 `@Transactional`이 리스너 메서드에 바로 붙는 것처럼 보이지만, 실제 구현은 그렇게
+하지 않았다. `OrderCreatedListener`/`InventoryReservedListener`/`PaymentResultListener`/
+`StockResultListener`는 여전히 `@Configuration` 클래스로 남고, `Consumer<T>` `@Bean` 메서드만
+제공한다. 트랜잭션 로직은 각각 새로 만든 `OrderCreatedHandler`, `InventoryReservedHandler`,
+`PaymentResultHandler`, `StockResultHandler` `@Component`로 옮기고, `@Bean` 메서드는 그 핸들러의
+메서드 레퍼런스를 반환한다.
+
+```java
+@Configuration
+@RequiredArgsConstructor
+public class OrderCreatedListener {
+
+    private final OrderCreatedHandler orderCreatedHandler;
+
+    @Bean
+    public Consumer<OrderCreatedEvent> orderCreatedConsumer() {
+        return orderCreatedHandler::handle;   // 핸들러 빈의 프록시를 거친다
+    }
+
+}
+```
+
+**왜 리스너에 직접 `@Transactional`을 붙일 수 없는가.** 리스너는 `@Bean` 메서드를 가진
+`@Configuration` 클래스이고, Spring Boot는 이런 설정 클래스를 CGLIB으로 프록시해 `@Bean` 메서드
+호출을 가로챈다(싱글턴 보장 목적). 그런데 이 프록시는 `@Bean` *메서드 자체의 호출*을 가로채는 것이지,
+그 메서드가 반환한 객체의 메서드 호출을 가로채지 않는다. `@Transactional`을 리스너의 `handleOrderCreated`
+같은 메서드에 붙이고 `this::handleOrderCreated`를 `@Bean` 메서드에서 참조로 넘기면, 그 메서드
+레퍼런스는 프록시되지 않은 `this`를 가리킨다 — 트랜잭션 어드바이저를 절대 거치지 않으므로
+애너테이션이 조용히 무시된다(inert). 반면 핸들러는 평범한 `@Component`라 스프링이 통상적인
+방식으로 트랜잭션 프록시를 씌우고, `@Bean` 메서드는 그 프록시된 빈의 메서드 레퍼런스를 반환하므로
+`@Transactional`이 정상적으로 적용된다.
+
 ### 경로 B가 해결되는 지점
 
 Outbox 적용 후에는 결제 승인과 Outbox 저장이 원자적이다. 결제가 저장되었다면 Outbox 행도
@@ -185,13 +224,17 @@ public void purgePublished() {
 
 - `product/service/ReservationResult` 신규 (sealed interface)
 - `product/service/ProductService.softReserveStock` 반환 타입 변경
-- `messaging/OrderCreatedListener` — `@Transactional`, Outbox 저장으로 전환
+- `messaging/OrderCreatedListener` — `@Configuration` + `@Bean` 배선만 남김
+- `messaging/OrderCreatedHandler` 신규 — `@Transactional`, Outbox 저장으로 전환 (실제 트랜잭션 로직)
+- `messaging/PaymentResultListener` — `@Configuration` + `@Bean` 배선만 남김
+- `messaging/PaymentResultHandler` 신규 — `@Transactional`로 멱등성·재고 확정/해제 원자화
 - `messaging/StockEventPublisher` — `send()` 반환값 검사
 - `application.yml` — producer `sync: true`
 
 **payment-service**
 
-- `messaging/InventoryReservedListener` — `@Transactional`, Outbox 저장으로 전환
+- `messaging/InventoryReservedListener` — `@Configuration` + `@Bean` 배선만 남김
+- `messaging/InventoryReservedHandler` 신규 — `@Transactional`, Outbox 저장으로 전환 (실제 트랜잭션 로직)
 - `messaging/PaymentEventPublisher` — `send()` 반환값 검사
 - `application.yml` — producer `sync: true`
 

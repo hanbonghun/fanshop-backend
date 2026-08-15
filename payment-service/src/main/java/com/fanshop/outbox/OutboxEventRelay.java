@@ -26,6 +26,8 @@ public class OutboxEventRelay {
 
     static final int RETENTION_DAYS = 7;
 
+    static final int MAX_CONSECUTIVE_FAILURES = 3;
+
     private final OutboxEventRepository outboxEventRepository;
 
     private final PaymentEventPublisher paymentEventPublisher;
@@ -36,10 +38,12 @@ public class OutboxEventRelay {
             initialDelayString = "${outbox.relay.initial-delay:0}")
     @Transactional
     public void relay() {
+        int consecutiveFailures = 0;
         for (OutboxEvent outboxEvent : outboxEventRepository.findPendingBatch(BATCH_SIZE)) {
             try {
                 publish(outboxEvent);
                 outboxEvent.markPublished();
+                consecutiveFailures = 0;
             }
             catch (Exception e) {
                 outboxEvent.recordFailure(MAX_ATTEMPTS);
@@ -50,6 +54,16 @@ public class OutboxEventRelay {
                 else {
                     log.error("Outbox 이벤트 발행 실패 — id={}, type={}, retryCount={}/{}", outboxEvent.getId(),
                             outboxEvent.getEventType(), outboxEvent.getRetryCount(), MAX_ATTEMPTS, e);
+                }
+
+                // 브로커 장애는 배치의 나머지 항목도 같은 이유로 실패할 가능성이 높다. 계속 시도하면
+                // DB 트랜잭션·Hikari 커넥션·SKIP LOCKED로 잡은 행 잠금을 발행 타임아웃만큼 오래 붙들고,
+                // scheduling pool size가 기본 1이라 purgePublished까지 굶긴다. 연속 실패가 임계치를
+                // 넘으면 이번 틱을 중단하고 나머지는 다음 폴링에서 재시도한다.
+                consecutiveFailures++;
+                if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                    log.error("연속 발행 실패 {}건 — 브로커 장애로 판단해 이번 틱을 중단한다", consecutiveFailures);
+                    break;
                 }
             }
         }
