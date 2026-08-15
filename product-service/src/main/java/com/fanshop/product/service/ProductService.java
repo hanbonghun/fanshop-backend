@@ -32,13 +32,14 @@ public class ProductService {
     }
 
     @Transactional
-    public void softReserveStock(Long productId, int quantity) {
-        Product product = productRepository.findByIdWithLock(productId)
-            .orElseThrow(() -> new CoreException(ErrorType.PRODUCT_NOT_FOUND, productId));
-        if (product.availableQuantity() < quantity) {
-            throw new CoreException(ErrorType.INSUFFICIENT_STOCK, productId);
-        }
-        product.softReserve(quantity);
+    public ReservationResult softReserveStock(Long productId, int quantity) {
+        return productRepository.findByIdWithLock(productId).map(product -> {
+            if (product.availableQuantity() < quantity) {
+                return ReservationResult.rejected(ErrorType.INSUFFICIENT_STOCK.getMessage());
+            }
+            product.softReserve(quantity);
+            return ReservationResult.reserved();
+        }).orElseGet(() -> ReservationResult.rejected(ErrorType.PRODUCT_NOT_FOUND.getMessage()));
     }
 
     @Transactional
