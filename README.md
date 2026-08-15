@@ -71,6 +71,12 @@ Outbox 릴레이도 같은 원리 적용 — 발행 5회 실패 시 FAILED로 �
 Grafana Tempo에서 Order → Payment → Order 흐름이 서비스마다 traceId가 달라 끊기는 문제.
 `spring.cloud.stream.kafka.binder.enable-observation: true` 설정으로 Kafka 헤더에 trace context 자동 전파.
 
+**테스트의 브로커 의존 제거**
+DB는 테스트용으로 격리해뒀는데(`local` 프로파일 → H2) Kafka는 안 해놔서, 테스트가 개발용 브로커 주소(`localhost:9092`)를 그대로 바라보고 있었다.
+브로커가 없으면 컨텍스트 기동 때마다 `KafkaTopicProvisioner`가 토픽을 만들려고 AdminClient 타임아웃을 소진한다 — 테스트는 통과하지만 CI가 33분 걸렸다. 실제 테스트 실행 시간은 전부 1초 미만이고, 나머지는 전부 대기였다.
+`spring-cloud-stream-test-binder`(in-memory 바인더)를 테스트에 적용해 브로커 접속 자체를 없앴다. MySQL에 H2를 쓴 것과 같은 처리다. 바인더는 교체 가능한 계층이라 리스너 코드(`Consumer<T>`)는 그대로다.
+브로커 없이 전체 테스트 33분 17초 → 19초. 진짜 브로커가 필요한 건 SAGA E2E 검증뿐이고, 그건 테스트가 직접 띄우는 방식으로 남겨뒀다.
+
 **Virtual Threads ([#18](https://github.com/hanbonghun/fanshop-backend/pull/18))**
 스파이크 테스트에서 Virtual Threads 적용 후 처리량 13,701건 → 20,378건/30초(+49%), p95 응답시간 2,024ms → 991ms(-51%) 확인.
 - 조건: `POST /orders` 단일 API, 0→500 VU 5초 램프 후 20초 유지(총 30초), 재고를 충분히 설정해 전 요청이 DB write + Kafka 발행 경로를 통과. p95는 k6 `http_req_duration` 기준
@@ -111,6 +117,6 @@ docker compose up -d
 Grafana: http://localhost:3000 (admin / admin)
 
 ```bash
-# 테스트
+# 테스트 — 인프라 없이 동작한다 (DB는 H2, Kafka는 test-binder)
 ./gradlew test
 ```

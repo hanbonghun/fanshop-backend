@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.stream.binder.test.EnableTestBinder;
 import org.springframework.core.env.Environment;
 import org.springframework.test.context.TestConstructor;
 
 @SpringBootTest
+@EnableTestBinder
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class OrderServiceObservabilityConfigTest {
 
