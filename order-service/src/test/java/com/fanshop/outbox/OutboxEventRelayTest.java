@@ -50,8 +50,7 @@ class OutboxEventRelayTest {
             String payload = objectMapper.writeValueAsString(event);
             OutboxEvent outboxEvent = new OutboxEvent("ORDER_CREATED", payload);
 
-            given(outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
-                .willReturn(List.of(outboxEvent));
+            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of(outboxEvent));
 
             // when
             outboxEventRelay.relay();
@@ -66,8 +65,7 @@ class OutboxEventRelayTest {
         @DisplayName("PENDING 이벤트가 없으면 Kafka 발행을 하지 않는다")
         void noPendingEvents() {
             // given
-            given(outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
-                .willReturn(List.of());
+            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of());
 
             // when
             outboxEventRelay.relay();
@@ -84,8 +82,7 @@ class OutboxEventRelayTest {
             String payload = objectMapper.writeValueAsString(event);
             OutboxEvent outboxEvent = new OutboxEvent("ORDER_CREATED", payload);
 
-            given(outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
-                .willReturn(List.of(outboxEvent));
+            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of(outboxEvent));
             doThrow(new RuntimeException("Kafka 연결 실패")).when(orderEventPublisher).publishOrderCreated(any());
 
             // when
@@ -104,8 +101,7 @@ class OutboxEventRelayTest {
             String payload = objectMapper.writeValueAsString(event);
             OutboxEvent outboxEvent = new OutboxEvent("ORDER_CREATED", payload);
 
-            given(outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
-                .willReturn(List.of(outboxEvent));
+            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of(outboxEvent));
             doThrow(new RuntimeException("Kafka 연결 실패")).when(orderEventPublisher).publishOrderCreated(any());
 
             // when
