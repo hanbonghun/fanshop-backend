@@ -2,56 +2,22 @@ package com.fanshop.messaging;
 
 import java.util.function.Consumer;
 
-import com.fanshop.common.idempotency.ProcessedEvent;
-import com.fanshop.common.idempotency.ProcessedEventRepository;
-import com.fanshop.messaging.event.InventoryRejectedEvent;
-import com.fanshop.messaging.event.InventoryReservedEvent;
 import com.fanshop.messaging.event.OrderCreatedEvent;
-import com.fanshop.product.service.ProductService;
-import com.fanshop.product.service.ReservationResult;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class OrderCreatedListener {
 
-    private static final String EVENT_TYPE = "ORDER_CREATED";
-
-    private final ProductService productService;
-
-    private final StockEventPublisher stockEventPublisher;
-
-    private final ProcessedEventRepository processedEventRepository;
+    private final OrderCreatedHandler orderCreatedHandler;
 
     @Bean
     public Consumer<OrderCreatedEvent> orderCreatedConsumer() {
-        return this::handleOrderCreated;
-    }
-
-    public void handleOrderCreated(OrderCreatedEvent event) {
-        String eventId = String.valueOf(event.orderId());
-        if (processedEventRepository.existsByEventIdAndEventType(eventId, EVENT_TYPE)) {
-            log.warn("중복 이벤트 무시 — type={}, orderId={}", EVENT_TYPE, event.orderId());
-            return;
-        }
-        processedEventRepository.save(new ProcessedEvent(eventId, EVENT_TYPE));
-
-        log.info("Received order.created — orderId={}, productId={}", event.orderId(), event.productId());
-        switch (productService.softReserveStock(event.productId(), event.quantity())) {
-            case ReservationResult.Reserved() ->
-                stockEventPublisher.publishInventoryReserved(new InventoryReservedEvent(event.orderId(),
-                        event.memberId(), event.productId(), event.quantity(), event.totalPrice()));
-            case ReservationResult.Rejected(String reason) -> {
-                log.warn("Inventory reservation rejected — orderId={}, reason={}", event.orderId(), reason);
-                stockEventPublisher.publishInventoryRejected(new InventoryRejectedEvent(event.orderId(), reason));
-            }
-        }
+        return orderCreatedHandler::handle;
     }
 
 }

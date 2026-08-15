@@ -3,6 +3,7 @@ package com.fanshop.messaging;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -12,6 +13,7 @@ import com.fanshop.common.idempotency.ProcessedEventRepository;
 import com.fanshop.messaging.event.InventoryRejectedEvent;
 import com.fanshop.messaging.event.InventoryReservedEvent;
 import com.fanshop.messaging.event.OrderCreatedEvent;
+import com.fanshop.outbox.OutboxRecorder;
 import com.fanshop.product.service.ProductService;
 import com.fanshop.product.service.ReservationResult;
 import com.fanshop.support.error.ErrorType;
@@ -25,26 +27,26 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class OrderCreatedListenerTest {
+class OrderCreatedHandlerTest {
 
     @Mock
     private ProductService productService;
 
     @Mock
-    private StockEventPublisher stockEventPublisher;
+    private OutboxRecorder outboxRecorder;
 
     @Mock
     private ProcessedEventRepository processedEventRepository;
 
     @InjectMocks
-    private OrderCreatedListener orderCreatedListener;
+    private OrderCreatedHandler orderCreatedHandler;
 
     @Nested
-    @DisplayName("handleOrderCreated")
-    class HandleOrderCreated {
+    @DisplayName("handle")
+    class Handle {
 
         @Test
-        @DisplayName("재고 선점 성공 시 inventory.reserved 이벤트를 발행한다")
+        @DisplayName("재고 선점 성공 시 INVENTORY_RESERVED를 Outbox에 기록한다")
         void success() {
             // given
             OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
@@ -52,14 +54,14 @@ class OrderCreatedListenerTest {
             given(productService.softReserveStock(3L, 4)).willReturn(ReservationResult.reserved());
 
             // when
-            orderCreatedListener.handleOrderCreated(event);
+            orderCreatedHandler.handle(event);
 
             // then
-            verify(stockEventPublisher).publishInventoryReserved(new InventoryReservedEvent(1L, 2L, 3L, 4, 50000L));
+            verify(outboxRecorder).record("INVENTORY_RESERVED", new InventoryReservedEvent(1L, 2L, 3L, 4, 50000L));
         }
 
         @Test
-        @DisplayName("재고가 부족하면 Rejected를 받아 inventory.rejected 이벤트를 발행한다")
+        @DisplayName("재고가 부족하면 INVENTORY_REJECTED를 Outbox에 기록한다")
         void rejected() {
             // given
             OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
@@ -68,16 +70,16 @@ class OrderCreatedListenerTest {
             given(productService.softReserveStock(3L, 4)).willReturn(ReservationResult.rejected(reason));
 
             // when
-            orderCreatedListener.handleOrderCreated(event);
+            orderCreatedHandler.handle(event);
 
             // then
-            verify(stockEventPublisher).publishInventoryRejected(new InventoryRejectedEvent(1L, reason));
+            verify(outboxRecorder).record("INVENTORY_REJECTED", new InventoryRejectedEvent(1L, reason));
         }
 
     }
 
     @Nested
-    @DisplayName("handleOrderCreated — 멱등성")
+    @DisplayName("handle — 멱등성")
     class Idempotency {
 
         @Test
@@ -88,12 +90,11 @@ class OrderCreatedListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "ORDER_CREATED")).willReturn(true);
 
             // when
-            orderCreatedListener.handleOrderCreated(event);
+            orderCreatedHandler.handle(event);
 
             // then
             verify(productService, never()).softReserveStock(anyLong(), anyInt());
-            verify(stockEventPublisher, never()).publishInventoryReserved(any());
-            verify(stockEventPublisher, never()).publishInventoryRejected(any());
+            verify(outboxRecorder, never()).record(anyString(), any());
         }
 
         @Test
@@ -105,7 +106,7 @@ class OrderCreatedListenerTest {
             given(productService.softReserveStock(3L, 4)).willReturn(ReservationResult.reserved());
 
             // when
-            orderCreatedListener.handleOrderCreated(event);
+            orderCreatedHandler.handle(event);
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
