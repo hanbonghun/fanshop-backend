@@ -21,12 +21,16 @@ public class StockEventPublisher {
     private final StreamBridge streamBridge;
 
     public void publishInventoryReserved(InventoryReservedEvent event) {
-        streamBridge.send(INVENTORY_RESERVED_BINDING, event);
+        if (!streamBridge.send(INVENTORY_RESERVED_BINDING, event)) {
+            throw new IllegalStateException("inventory.reserved 발행 실패 — orderId=" + event.orderId());
+        }
         log.info("Published inventory.reserved — orderId={}", event.orderId());
     }
 
     public void publishInventoryRejected(InventoryRejectedEvent event) {
-        streamBridge.send(INVENTORY_REJECTED_BINDING, event);
+        if (!streamBridge.send(INVENTORY_REJECTED_BINDING, event)) {
+            throw new IllegalStateException("inventory.rejected 발행 실패 — orderId=" + event.orderId());
+        }
         log.info("Published inventory.rejected — orderId={}, reason={}", event.orderId(), event.reason());
     }
 

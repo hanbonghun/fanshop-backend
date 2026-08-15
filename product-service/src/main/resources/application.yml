@@ -36,6 +36,13 @@ spring:
         default:
           consumer:
             enableDlq: true
+        bindings:
+          inventoryReserved-out-0:
+            producer:
+              sync: true
+          inventoryRejected-out-0:
+            producer:
+              sync: true
         binder:
           brokers: localhost:9092
 
