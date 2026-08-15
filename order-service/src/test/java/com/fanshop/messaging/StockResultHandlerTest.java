@@ -24,7 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class StockResultListenerTest {
+class StockResultHandlerTest {
 
     @Mock
     private OrderService orderService;
@@ -33,7 +33,7 @@ class StockResultListenerTest {
     private ProcessedEventRepository processedEventRepository;
 
     @InjectMocks
-    private StockResultListener stockResultListener;
+    private StockResultHandler stockResultHandler;
 
     @Nested
     @DisplayName("handleInventoryReserved — 멱등성")
@@ -48,7 +48,7 @@ class StockResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "INVENTORY_RESERVED")).willReturn(false);
 
             // when
-            stockResultListener.handleInventoryReserved(event);
+            stockResultHandler.handleInventoryReserved(event);
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
@@ -62,7 +62,7 @@ class StockResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "INVENTORY_RESERVED")).willReturn(true);
 
             // when
-            stockResultListener.handleInventoryReserved(event);
+            stockResultHandler.handleInventoryReserved(event);
 
             // then
             verify(orderService, never()).waitForPayment(anyLong());
@@ -83,7 +83,7 @@ class StockResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "INVENTORY_REJECTED")).willReturn(false);
 
             // when
-            stockResultListener.handleInventoryRejected(event);
+            stockResultHandler.handleInventoryRejected(event);
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
@@ -97,7 +97,7 @@ class StockResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "INVENTORY_REJECTED")).willReturn(true);
 
             // when
-            stockResultListener.handleInventoryRejected(event);
+            stockResultHandler.handleInventoryRejected(event);
 
             // then
             verify(orderService, never()).cancelOrder(anyLong(), anyString());
@@ -118,7 +118,7 @@ class StockResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "PAYMENT_COMPLETED")).willReturn(false);
 
             // when
-            stockResultListener.handlePaymentCompleted(event);
+            stockResultHandler.handlePaymentCompleted(event);
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
@@ -132,7 +132,7 @@ class StockResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "PAYMENT_COMPLETED")).willReturn(true);
 
             // when
-            stockResultListener.handlePaymentCompleted(event);
+            stockResultHandler.handlePaymentCompleted(event);
 
             // then
             verify(orderService, never()).confirmOrder(anyLong());
@@ -153,7 +153,7 @@ class StockResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "PAYMENT_FAILED")).willReturn(false);
 
             // when
-            stockResultListener.handlePaymentFailed(event);
+            stockResultHandler.handlePaymentFailed(event);
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
@@ -167,7 +167,7 @@ class StockResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "PAYMENT_FAILED")).willReturn(true);
 
             // when
-            stockResultListener.handlePaymentFailed(event);
+            stockResultHandler.handlePaymentFailed(event);
 
             // then
             verify(orderService, never()).cancelOrder(anyLong(), anyString());

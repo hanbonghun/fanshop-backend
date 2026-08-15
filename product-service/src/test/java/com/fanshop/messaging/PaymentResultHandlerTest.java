@@ -22,7 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class PaymentResultListenerTest {
+class PaymentResultHandlerTest {
 
     @Mock
     private ProductService productService;
@@ -31,7 +31,7 @@ class PaymentResultListenerTest {
     private ProcessedEventRepository processedEventRepository;
 
     @InjectMocks
-    private PaymentResultListener paymentResultListener;
+    private PaymentResultHandler paymentResultHandler;
 
     @Nested
     @DisplayName("handlePaymentCompleted")
@@ -46,7 +46,7 @@ class PaymentResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "PAYMENT_COMPLETED")).willReturn(false);
 
             // when
-            paymentResultListener.handlePaymentCompleted(event);
+            paymentResultHandler.handlePaymentCompleted(event);
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
@@ -60,7 +60,7 @@ class PaymentResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "PAYMENT_COMPLETED")).willReturn(true);
 
             // when
-            paymentResultListener.handlePaymentCompleted(event);
+            paymentResultHandler.handlePaymentCompleted(event);
 
             // then
             verify(productService, never()).confirmReservation(anyLong(), anyInt());
@@ -81,7 +81,7 @@ class PaymentResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "PAYMENT_FAILED")).willReturn(false);
 
             // when
-            paymentResultListener.handlePaymentFailed(event);
+            paymentResultHandler.handlePaymentFailed(event);
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
@@ -95,7 +95,7 @@ class PaymentResultListenerTest {
             given(processedEventRepository.existsByEventIdAndEventType("1", "PAYMENT_FAILED")).willReturn(true);
 
             // when
-            paymentResultListener.handlePaymentFailed(event);
+            paymentResultHandler.handlePaymentFailed(event);
 
             // then
             verify(productService, never()).releaseReservation(anyLong(), anyInt());
