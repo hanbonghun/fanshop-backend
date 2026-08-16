@@ -16,7 +16,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.HttpClientErrorException;
 
 @Slf4j
@@ -31,11 +33,26 @@ public class OrderService {
 
     private final OutboxRecorder outboxRecorder;
 
-    @Transactional
+    private final TransactionTemplate transactionTemplate;
+
+    /**
+     * 상품 조회(동기 HTTP)는 트랜잭션 밖에서 한다. 트랜잭션 안에 두면 네트워크 왕복이 끝날 때까지 DB 커넥션을 점유해, 커넥션 풀 크기가 곧 동시
+     * 처리량의 상한이 된다.
+     *
+     * <p>
+     * 쓰기 구간만 {@link TransactionTemplate}으로 묶는다. 메서드를 쪼개 {@code @Transactional}을 붙이는 방식은
+     * 같은 빈 안의 자기 호출이라 프록시를 거치지 않아 애너테이션이 조용히 무시된다.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public OrderResponse createOrder(Long memberId, CreateOrderRequest request) {
         ProductResponse product = fetchProduct(request.getProductId());
-
         long totalPrice = product.getPrice() * request.getQuantity();
+
+        return transactionTemplate.execute(status -> persistOrder(memberId, request, product, totalPrice));
+    }
+
+    private OrderResponse persistOrder(Long memberId, CreateOrderRequest request, ProductResponse product,
+            long totalPrice) {
         Order savedOrder = orderRepository
             .save(new Order(memberId, product.getId(), request.getQuantity(), totalPrice, OrderStatus.PENDING));
 

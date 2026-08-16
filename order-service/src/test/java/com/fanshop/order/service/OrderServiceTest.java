@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.HttpClientErrorException;
@@ -42,6 +44,9 @@ class OrderServiceTest {
 
     @Mock
     private OutboxRecorder outboxRecorder;
+
+    @Mock
+    private TransactionTemplate transactionTemplate;
 
     @InjectMocks
     private OrderService orderService;
@@ -59,6 +64,8 @@ class OrderServiceTest {
 
             ProductResponse product = new ProductResponse(10L, "티셔츠", 29000L, 100);
             given(productClient.getProduct(10L)).willReturn(ApiResponse.success(product));
+            given(transactionTemplate.execute(any()))
+                .willAnswer(inv -> inv.<TransactionCallback<?>>getArgument(0).doInTransaction(null));
             given(orderRepository.save(any(Order.class)))
                 .willReturn(new Order(memberId, 10L, 2, 58000L, OrderStatus.PENDING));
 
