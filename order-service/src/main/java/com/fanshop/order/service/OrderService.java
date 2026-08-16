@@ -57,7 +57,7 @@ public class OrderService {
     @Transactional
     public void confirmOrder(Long orderId) {
         Order order = findOrder(orderId);
-        order.confirm();
+        order.onPaymentCompleted();
         log.info("Order confirmed: orderId={}", orderId);
     }
 

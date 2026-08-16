@@ -46,12 +46,31 @@ public class Order extends BaseEntity {
         this.status = OrderStatus.WAITING_PAYMENT;
     }
 
-    public void confirm() {
-        this.status = OrderStatus.CONFIRMED;
+    /**
+     * 결제 성공 수신. 만료된 뒤 도착한 경우 확정하지 않고 환불 대상으로 남긴다 — 예약 재고는 이미 해제되어 다른 주문에 팔렸을 수 있으므로 되잡지
+     * 않는다.
+     */
+    public void onPaymentCompleted() {
+        switch (status) {
+            case PENDING, WAITING_PAYMENT -> this.status = OrderStatus.CONFIRMED;
+            case EXPIRED -> this.status = OrderStatus.REFUND_REQUIRED;
+            default -> throw new IllegalStateException("확정할 수 없는 상태 — status=" + status);
+        }
     }
 
     public void cancel() {
+        if (status != OrderStatus.PENDING && status != OrderStatus.WAITING_PAYMENT) {
+            throw new IllegalStateException("취소할 수 없는 상태 — status=" + status);
+        }
         this.status = OrderStatus.CANCELLED;
+    }
+
+    /** 결제 응답이 오지 않아 만료시킨다. 결제 대기 중인 주문만 대상이다. */
+    public void expire() {
+        if (status != OrderStatus.WAITING_PAYMENT) {
+            throw new IllegalStateException("만료시킬 수 없는 상태 — status=" + status);
+        }
+        this.status = OrderStatus.EXPIRED;
     }
 
 }

@@ -10,7 +10,7 @@ spring:
   web.resources.add-mappings: false
   cloud:
     function:
-      definition: orderCreatedConsumer;paymentCompletedConsumer;paymentFailedConsumer
+      definition: orderCreatedConsumer;paymentCompletedConsumer;paymentFailedConsumer;orderExpiredConsumer
     stream:
       default:
         contentType: application/json
@@ -31,6 +31,9 @@ spring:
           group: product-service
         paymentFailedConsumer-in-0:
           destination: payment.failed
+          group: product-service
+        orderExpiredConsumer-in-0:
+          destination: order.expired
           group: product-service
       kafka:
         default:

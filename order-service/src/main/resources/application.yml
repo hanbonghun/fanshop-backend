@@ -18,6 +18,8 @@ spring:
       bindings:
         orderCreated-out-0:
           destination: order.created
+        orderExpired-out-0:
+          destination: order.expired
         inventoryReservedConsumer-in-0:
           destination: inventory.reserved
           group: order-service
@@ -36,6 +38,9 @@ spring:
             enableDlq: true
         bindings:
           orderCreated-out-0:
+            producer:
+              sync: true
+          orderExpired-out-0:
             producer:
               sync: true
         binder:

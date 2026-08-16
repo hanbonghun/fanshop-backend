@@ -2,6 +2,7 @@ package com.fanshop.messaging;
 
 import java.util.function.Consumer;
 
+import com.fanshop.messaging.event.OrderExpiredEvent;
 import com.fanshop.messaging.event.PaymentCompletedEvent;
 import com.fanshop.messaging.event.PaymentFailedEvent;
 
@@ -16,6 +17,8 @@ public class PaymentResultListener {
 
     private final PaymentResultHandler paymentResultHandler;
 
+    private final OrderExpiredHandler orderExpiredHandler;
+
     @Bean
     public Consumer<PaymentCompletedEvent> paymentCompletedConsumer() {
         return paymentResultHandler::handlePaymentCompleted;
@@ -24,6 +27,11 @@ public class PaymentResultListener {
     @Bean
     public Consumer<PaymentFailedEvent> paymentFailedConsumer() {
         return paymentResultHandler::handlePaymentFailed;
+    }
+
+    @Bean
+    public Consumer<OrderExpiredEvent> orderExpiredConsumer() {
+        return orderExpiredHandler::handleOrderExpired;
     }
 
 }
