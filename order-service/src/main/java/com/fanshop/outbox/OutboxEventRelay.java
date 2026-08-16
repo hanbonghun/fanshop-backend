@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fanshop.messaging.OrderEventPublisher;
 import com.fanshop.messaging.event.OrderCreatedEvent;
+import com.fanshop.messaging.event.OrderExpiredEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,7 +73,10 @@ public class OutboxEventRelay {
     }
 
     private void publish(OutboxEvent outboxEvent) {
-        if ("ORDER_CREATED".equals(outboxEvent.getEventType())) {
+        if ("ORDER_EXPIRED".equals(outboxEvent.getEventType())) {
+            orderEventPublisher.publishOrderExpired(deserialize(outboxEvent.getPayload(), OrderExpiredEvent.class));
+        }
+        else if ("ORDER_CREATED".equals(outboxEvent.getEventType())) {
             OrderCreatedEvent event = deserialize(outboxEvent.getPayload(), OrderCreatedEvent.class);
             orderEventPublisher.publishOrderCreated(event);
         }
