@@ -1,10 +1,10 @@
 package com.fanshop.outbox;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
-import com.fanshop.messaging.OrderEventPublisher;
-import com.fanshop.messaging.event.OrderCreatedEvent;
+import com.fanshop.messaging.PaymentEventPublisher;
+import com.fanshop.messaging.event.PaymentCompletedEvent;
+import com.fanshop.messaging.event.PaymentFailedEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,7 @@ public class OutboxEventRelay {
 
     private final OutboxEventRepository outboxEventRepository;
 
-    private final OrderEventPublisher orderEventPublisher;
+    private final PaymentEventPublisher paymentEventPublisher;
 
     private final ObjectMapper objectMapper;
 
@@ -38,10 +38,8 @@ public class OutboxEventRelay {
             initialDelayString = "${outbox.relay.initial-delay:0}")
     @Transactional
     public void relay() {
-        List<OutboxEvent> pending = outboxEventRepository.findPendingBatch(BATCH_SIZE);
-
         int consecutiveFailures = 0;
-        for (OutboxEvent outboxEvent : pending) {
+        for (OutboxEvent outboxEvent : outboxEventRepository.findPendingBatch(BATCH_SIZE)) {
             try {
                 publish(outboxEvent);
                 outboxEvent.markPublished();
@@ -71,30 +69,6 @@ public class OutboxEventRelay {
         }
     }
 
-    private void publish(OutboxEvent outboxEvent) {
-        if ("ORDER_CREATED".equals(outboxEvent.getEventType())) {
-            OrderCreatedEvent event = deserialize(outboxEvent.getPayload(), OrderCreatedEvent.class);
-            orderEventPublisher.publishOrderCreated(event);
-        }
-        else {
-            // 로그만 남기고 정상 반환하면 호출부에서 markPublished()가 실행되어, Kafka에 전달되지 않은 행이
-            // PUBLISHED로 기록된다. 예외로 던져 recordFailure → FAILED 격리 경로를 타게 한다.
-            throw new IllegalStateException("알 수 없는 이벤트 타입 — type=" + outboxEvent.getEventType());
-        }
-    }
-
-    private <T> T deserialize(String payload, Class<T> type) {
-        try {
-            return objectMapper.readValue(payload, type);
-        }
-        catch (Exception e) {
-            throw new IllegalStateException("Outbox 이벤트 역직렬화 실패 — type=" + type.getSimpleName(), e);
-        }
-    }
-
-    /**
-     * 발행에 성공한 이벤트는 보관 기간이 지나면 삭제한다. FAILED는 수동 복구 대상이라 남긴다.
-     */
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void purgePublished() {
@@ -108,6 +82,27 @@ public class OutboxEventRelay {
             log.info("Outbox 정리 — PUBLISHED {}건 삭제 (기준 {})", deleted, threshold);
         }
         return deleted;
+    }
+
+    private void publish(OutboxEvent outboxEvent) {
+        switch (outboxEvent.getEventType()) {
+            case "PAYMENT_COMPLETED" -> paymentEventPublisher
+                .publishPaymentCompleted(deserialize(outboxEvent.getPayload(), PaymentCompletedEvent.class));
+            case "PAYMENT_FAILED" -> paymentEventPublisher
+                .publishPaymentFailed(deserialize(outboxEvent.getPayload(), PaymentFailedEvent.class));
+            // 로그만 남기고 정상 반환하면 호출부에서 markPublished()가 실행되어, Kafka에 전달되지 않은 행이
+            // PUBLISHED로 기록된다. 예외로 던져 recordFailure → FAILED 격리 경로를 타게 한다.
+            default -> throw new IllegalStateException("알 수 없는 이벤트 타입 — type=" + outboxEvent.getEventType());
+        }
+    }
+
+    private <T> T deserialize(String payload, Class<T> type) {
+        try {
+            return objectMapper.readValue(payload, type);
+        }
+        catch (Exception e) {
+            throw new IllegalStateException("Outbox 이벤트 역직렬화 실패 — type=" + type.getSimpleName(), e);
+        }
     }
 
 }

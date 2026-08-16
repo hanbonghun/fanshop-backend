@@ -88,47 +88,48 @@ class ProductServiceTest {
     }
 
     @Nested
-    @DisplayName("softReserveStock (재고 선점)")
+    @DisplayName("softReserveStock")
     class SoftReserveStock {
 
         @Test
-        @DisplayName("가용 재고가 충분하면 reservedQuantity가 증가한다")
+        @DisplayName("가용 재고가 충분하면 Reserved를 반환하고 reservedQuantity가 증가한다")
         void success() {
-            // given
             Long productId = 1L;
             Product product = new Product("티셔츠", 29000L, 100);
             given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
-            // when
-            productService.softReserveStock(productId, 10);
+            ReservationResult result = productService.softReserveStock(productId, 10);
 
-            // then
+            assertThat(result).isInstanceOf(ReservationResult.Reserved.class);
             assertThat(product.getReservedQuantity()).isEqualTo(10);
-            assertThat(product.getStockQuantity()).isEqualTo(100); // 아직 실재고 변화 없음
+            assertThat(product.getStockQuantity()).isEqualTo(100);
         }
 
         @Test
-        @DisplayName("존재하지 않는 상품 ID면 PRODUCT_NOT_FOUND 예외를 던진다")
+        @DisplayName("존재하지 않는 상품이면 Rejected를 반환한다 — 재시도해도 성공하지 않으므로 예외가 아니다")
         void notFound() {
-            // given
             given(productRepository.findByIdWithLock(999L)).willReturn(Optional.empty());
 
-            // when & then
-            assertThatThrownBy(() -> productService.softReserveStock(999L, 1)).isInstanceOf(CoreException.class)
-                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
+            ReservationResult result = productService.softReserveStock(999L, 1);
+
+            assertThat(result).isInstanceOf(ReservationResult.Rejected.class);
+            assertThat(((ReservationResult.Rejected) result).reason())
+                .isEqualTo(ErrorType.PRODUCT_NOT_FOUND.getMessage());
         }
 
         @Test
-        @DisplayName("가용 재고가 부족하면 INSUFFICIENT_STOCK 예외를 던진다")
+        @DisplayName("가용 재고가 부족하면 Rejected를 반환한다")
         void insufficientStock() {
-            // given
             Long productId = 1L;
             Product product = new Product("티셔츠", 29000L, 5);
             given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
-            // when & then
-            assertThatThrownBy(() -> productService.softReserveStock(productId, 10)).isInstanceOf(CoreException.class)
-                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.INSUFFICIENT_STOCK));
+            ReservationResult result = productService.softReserveStock(productId, 10);
+
+            assertThat(result).isInstanceOf(ReservationResult.Rejected.class);
+            assertThat(((ReservationResult.Rejected) result).reason())
+                .isEqualTo(ErrorType.INSUFFICIENT_STOCK.getMessage());
+            assertThat(product.getReservedQuantity()).isZero();
         }
 
     }

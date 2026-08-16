@@ -27,6 +27,13 @@ spring:
         default:
           consumer:
             enableDlq: true
+        bindings:
+          paymentCompleted-out-0:
+            producer:
+              sync: true
+          paymentFailed-out-0:
+            producer:
+              sync: true
         binder:
           brokers: localhost:9092
 

@@ -1,9 +1,18 @@
 # fanshop-backend
 
+주문 플로우를 4개 마이크로서비스로 나누고, Kafka 이벤트 기반 SAGA로 분산 트랜잭션을 처리한 커머스 백엔드.
+
+- **서비스 4개** — member / order / product / payment, 각각 독립 프로세스
+- **서비스별 DB 분리** — `member_db` / `order_db` / `product_db` / `payment_db`
+- **비동기 이벤트 통신** — Spring Cloud Stream + Apache Kafka
+- **SAGA Choreography** — 오케스트레이터 없이 이벤트 연쇄로 주문 플로우 완성
+- **분산 추적** — 서비스 경계를 넘어 traceId 전파 (Tempo + OpenTelemetry)
+
 ## 목표
 
-분산 환경을 가정하고, 하나의 주문 플로우가 여러 서비스에 걸쳐 어떻게 완성되는지 직접 구현해보는 것.
-특히 **이벤트 기반 비동기 처리**에서 데이터 정합성을 어떻게 맞추는지를 중점적으로 다뤘다.
+MSA에서 어려운 건 서비스를 나누는 것이 아니라, 나눈 뒤 **트랜잭션이 서비스 경계를 넘지 못할 때 정합성을
+어떻게 맞추는가**다. 이 프로젝트는 그 지점에 집중했다 — 정합성이 정확히 어디서 깨지는지 찾고, 각각을
+무엇으로 막는지 직접 구현해 확인하는 것.
 
 ## 가정한 환경
 
@@ -65,7 +74,13 @@ order/product는 `processed_events(event_id, event_type)` 복합 unique 제약�
 poison message(역직렬화 불가, 처리 중 영구 예외)가 들어오면 기본 동작은 제한 재시도 후 로그만 남기고 오프셋을 넘긴다 — 실패가 어디에도 안 남고 유실된다.
 컨슈머는 바인더 재시도(3회, 1초 시작 백오프) 소진 후 `error.<destination>.<group>` DLQ 토픽으로 격리하도록 변경. 실패 원인이 exception 헤더와 함께 토픽에 남아 조회/재투입이 가능하다.
 Outbox 릴레이도 같은 원리 적용 — 발행 5회 실패 시 FAILED로 전환해 폴링 대상에서 제외한다. 이전에는 실패 이벤트가 PENDING으로 남아 1초마다 무한 재시도하며 로그를 밀어냈다.
-재시도 판정이 성립하려면 발행 실패가 릴레이에 예외로 드러나야 한다. `StreamBridge.send` 반환값을 검사하고 producer `sync: true`로 브로커 ack까지 대기시켜, 비동기 전송 실패가 PUBLISHED로 오기록되는 경로를 막았다.
+재시도 판정이 성립하려면 발행 실패가 릴레이에 예외로 드러나야 한다. 브로커 ack 실패는 producer `sync: true`가 `future.get()`에서 예외로 드러내고, 채널 단계 거부는 `send()`의 `false` 반환으로 드러난다. 두 경로 모두 릴레이의 `catch`로 들어가 재시도·격리를 탄다.
+
+**처리 유실 — 멱등성 가드가 삼킨 이벤트 ([ADR 0001](docs/adr/0001-outbox-expansion.md))**
+멱등성 기록이 비즈니스 처리보다 **먼저** 커밋되고 있었다. 처리가 일시 실패(DB 데드락 등)하면 재시도가 와도 `existsBy`가 true라 조용히 스킵된다 — 처리된 적 없는데 처리됨으로 남고, 실패가 아니니 DLQ에도 안 간다.
+멱등성 기록·비즈니스 처리·발행 예약을 한 트랜잭션으로 묶어 해결. 이 과정에서 Outbox를 product/payment로 확장했고, 재고 부족처럼 재시도해도 안 될 실패는 예외 대신 반환값(`sealed interface`)으로 바꿨다 — 예외로 던지면 트랜잭션이 rollback-only가 되어 보상 이벤트를 커밋할 수 없기 때문이다.
+가장 아팠던 건 product의 `handlePaymentFailed`다. 스킵되면 `releaseReservation`이 실행되지 않아 예약 재고가 **영구히 잠긴다** — 한정판이면 그 수량은 다시 팔리지 않는다.
+결정 근거와 삼중화가 실제로 얼마나 들었는지는 ADR에 기록했다.
 
 **분산 추적 연결 ([#17](https://github.com/hanbonghun/fanshop-backend/pull/17))**
 Grafana Tempo에서 Order → Payment → Order 흐름이 서비스마다 traceId가 달라 끊기는 문제.
@@ -84,11 +99,14 @@ DB는 테스트용으로 격리해뒀는데(`local` 프로파일 → H2) Kafka�
 
 ## 한계
 
+- **전달 보장(safety)은 다뤘지만 완결 보장(liveness)은 아직이다.** 발행 유실·중복 수신·처리 유실은 막았는데, "응답이 영영 오지 않는 것"을 알아채는 장치가 없다. payment-service가 죽거나 메시지가 DLQ로 격리되면 아무것도 유실되지 않았는데도 주문은 `WAITING_PAYMENT`에 남고 재고는 잠긴 채다. 예약 만료 스위퍼가 다음 작업이다
 - Outbox relay는 1초 주기로 polling하기 때문에 SAGA 시작까지 최대 1초 지연이 생긴다
 - 결제 서비스는 실제 PG 연동 없이 성공/실패를 시뮬레이션한다
 - 서킷 브레이커 미적용 — 동기 호출(`ProductClient`) 실패 시 빠른 차단이 없다
 - DLQ 재처리 자동화 없음 — 격리까지만 하고, DLQ 토픽과 FAILED Outbox의 재투입은 수동이다
 - 각 서비스는 별도 프로세스(JVM)로 실행되지만, 다중 노드 클러스터가 아닌 단일 개발 장비에서 검증했다
+- `outbox_events` 테이블은 `ddl-auto`로 생성되며 `local`/`local-dev` 프로파일에서만 동작한다. 실제 배포에는 마이그레이션 도구가 필요하다
+- 릴레이의 `FOR UPDATE SKIP LOCKED`는 MySQL 8.0.1 이상을 요구한다
 
 ## 기술 스택
 
