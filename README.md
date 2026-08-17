@@ -23,6 +23,7 @@ Java 25 · Spring Boot 4 · Kafka · SAGA Choreography · 서비스 4개, DB 4�
 | 결제 응답이 영영 안 옴 | 주문이 멈추고 예약 재고가 영구히 잠김 | 만료 스위퍼 |
 | 재고 예약이 결제를 자동 실행 | 구매자 인증 없이 결제가 성립할 수 없는데 서버가 단독 진행 | 승인을 confirm API로 분리 |
 | 승인 금액을 클라이언트가 지정 | 금액을 조작해 승인 요청 가능 | 예약 시점에 확정 저장한 금액과 대조 |
+| 주문 요청이 두 번 도달 | 더블클릭·재시도에 주문과 재고 예약이 두 건 | `Idempotency-Key` + `orders` UNIQUE |
 
 아래 셋은 특히 오래 붙잡았던 것들입니다.
 
@@ -129,8 +130,8 @@ DB는 H2로 격리해뒀는데 Kafka는 안 해놔서, 테스트가 개발용 �
 ## 주문 플로우
 
 ```
-[POST /orders]
-     │
+[POST /orders]  Idempotency-Key 필수
+     │  같은 키의 재요청이면 기존 주문을 그대로 반환하고 끝낸다
      ▼
  Order 생성 (PENDING) + outbox_events 저장 (같은 트랜잭션)
      │

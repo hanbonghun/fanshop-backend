@@ -7,6 +7,7 @@ import com.fanshop.support.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -23,6 +24,17 @@ public class ApiControllerAdvice {
             default -> log.info("CoreException : {}", e.getMessage(), e);
         }
         return new ResponseEntity<>(ApiResponse.error(e.getErrorType(), e.getData()), e.getErrorType().getStatus());
+    }
+
+    /**
+     * 필수 헤더 누락은 서버 오류가 아니라 잘못된 요청이다. {@code Idempotency-Key}가 없으면 재요청 안전성을 보장할 수 없으므로
+     * 주문을 만들지 않고 거부한다.
+     */
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<?>> handleMissingHeader(MissingRequestHeaderException e) {
+        log.warn("필수 헤더 누락 — {}", e.getHeaderName());
+        return new ResponseEntity<>(ApiResponse.error(ErrorType.BAD_REQUEST, e.getHeaderName()),
+                ErrorType.BAD_REQUEST.getStatus());
     }
 
     @ExceptionHandler(Exception.class)

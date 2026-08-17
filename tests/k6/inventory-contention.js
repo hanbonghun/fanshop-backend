@@ -53,7 +53,8 @@ const params = {
 
 export default function () {
   const start = Date.now();
-  const res = http.post(`${BASE_URL}/api/v1/orders`, payload, params);
+  const res = http.post(`${BASE_URL}/api/v1/orders`, payload,
+    { ...params, headers: { ...params.headers, 'Idempotency-Key': `${__VU}-${__ITER}-${Date.now()}` } });
   createDuration.add(Date.now() - start);
 
   check(res, { '5xx 없음': (r) => r.status < 500 });

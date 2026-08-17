@@ -68,6 +68,7 @@ class OrderControllerTest extends ContextTest {
             // when & then
             mockMvc
                 .perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                     .header(HttpHeaders.AUTHORIZATION, bearerToken(1L))
                     .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -84,8 +85,19 @@ class OrderControllerTest extends ContextTest {
             // when & then
             mockMvc
                 .perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                     .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Idempotency-Key 헤더가 없으면 400을 반환한다 — 재요청 안전성을 보장할 수 없는 요청은 받지 않는다")
+        void rejectsMissingIdempotencyKey() throws Exception {
+            mockMvc
+                .perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken(1L))
+                    .content(objectMapper.writeValueAsString(new CreateOrderRequest(10L, 2))))
+                .andExpect(status().isBadRequest());
         }
 
         @Test
@@ -98,6 +110,7 @@ class OrderControllerTest extends ContextTest {
             // when & then
             mockMvc
                 .perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
                     .header(HttpHeaders.AUTHORIZATION, bearerToken(1L))
                     .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());

@@ -66,12 +66,15 @@ export default function () {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${JWT_TOKEN}`,
+      // 주문 생성은 멱등키를 요구한다. 부하 테스트는 매 요청이 새 주문이어야 하므로 반복마다 새 키를 만든다.
+      'Idempotency-Key': `${__VU}-${__ITER}-${Date.now()}`,
     },
     timeout: '10s',
   };
 
   const start = Date.now();
-  const res = http.post(`${BASE_URL}/api/v1/orders`, payload, params);
+  const res = http.post(`${BASE_URL}/api/v1/orders`, payload,
+    { ...params, headers: { ...params.headers, 'Idempotency-Key': `${__VU}-${__ITER}-${Date.now()}` } });
   orderDuration.add(Date.now() - start);
 
   // 응답 검증
