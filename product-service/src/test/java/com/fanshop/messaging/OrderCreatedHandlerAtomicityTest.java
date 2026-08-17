@@ -48,7 +48,8 @@ class OrderCreatedHandlerAtomicityTest extends ContextTest {
     @DisplayName("비즈니스 처리가 일시 실패하면 멱등성 기록도 롤백되어 재시도가 정상 동작한다")
     void rollsBackProcessedEventOnTransientFailure() {
         OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
-        given(productService.softReserveStock(anyLong(), anyInt())).willThrow(new RuntimeException("DB 일시 오류"));
+        given(productService.softReserveStock(anyLong(), anyLong(), anyInt()))
+            .willThrow(new RuntimeException("DB 일시 오류"));
 
         assertThatThrownBy(() -> handler.handle(event)).isInstanceOf(RuntimeException.class);
 
@@ -60,7 +61,7 @@ class OrderCreatedHandlerAtomicityTest extends ContextTest {
     @DisplayName("재고 부족은 롤백 없이 INVENTORY_REJECTED가 Outbox에 저장된다")
     void recordsRejectedWithoutRollback() {
         OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
-        given(productService.softReserveStock(3L, 4)).willReturn(ReservationResult.rejected("Insufficient stock."));
+        given(productService.softReserveStock(1L, 3L, 4)).willReturn(ReservationResult.rejected("Insufficient stock."));
 
         handler.handle(event);
 
@@ -73,7 +74,7 @@ class OrderCreatedHandlerAtomicityTest extends ContextTest {
     @DisplayName("예약 성공 시 INVENTORY_RESERVED가 Outbox에 저장된다")
     void recordsReserved() {
         OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
-        given(productService.softReserveStock(3L, 4)).willReturn(ReservationResult.reserved());
+        given(productService.softReserveStock(1L, 3L, 4)).willReturn(ReservationResult.reserved());
 
         handler.handle(event);
 

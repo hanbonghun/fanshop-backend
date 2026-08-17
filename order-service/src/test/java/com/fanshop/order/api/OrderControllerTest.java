@@ -101,6 +101,17 @@ class OrderControllerTest extends ContextTest {
         }
 
         @Test
+        @DisplayName("수량이 0 이하면 400을 반환한다 — 음수 수량은 예약량을 줄이고 확정 시 재고를 늘린다")
+        void rejectsNonPositiveQuantity() throws Exception {
+            mockMvc
+                .perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken(1L))
+                    .content(objectMapper.writeValueAsString(new CreateOrderRequest(10L, -1))))
+                .andExpect(status().isBadRequest());
+        }
+
+        @Test
         @DisplayName("존재하지 않는 상품이면 404 Not Found를 반환한다")
         void productNotFound() throws Exception {
             // given

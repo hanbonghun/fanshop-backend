@@ -25,7 +25,10 @@ Java 25 · Spring Boot 4 · Kafka · SAGA Choreography · 서비스 4개, DB 4�
 | 결제 응답이 영영 안 옴 | 주문이 멈추고 예약 재고가 영구히 잠김 | 만료 스위퍼 |
 | 재고 예약이 결제를 자동 실행 | 구매자 인증 없이 결제가 성립할 수 없는데 서버가 단독 진행 | 승인을 confirm API로 분리 ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
 | 승인 금액을 클라이언트가 지정 | 금액을 조작해 승인 요청 가능 | 예약 시점에 확정 저장한 금액과 대조 ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
-| 주문 요청이 두 번 도달 | 더블클릭·재시도에 주문과 재고 예약이 두 건 | `Idempotency-Key` + `orders` UNIQUE ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
+| 주문 요청이 두 번 도달 | 더블클릭·재시도에 주문과 재고 예약이 두 건 | `Idempotency-Key` + `UNIQUE(member_id, key)` ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
+| 만료 해제 뒤 늦은 결제 성공 | product가 주문 상태를 몰라 확정 → 예약량이 음수, 팔지 않은 재고 증발 | 주문별 `InventoryReservation` 상태 전이 |
+| 확정 뒤 늦은 만료 이벤트 | 팔린 재고가 되살아남 | 같은 전이 가드 |
+| 음수 수량 요청 | 예약량이 줄고 확정 시 재고가 늘어남 | Bean Validation + 도메인 수량 가드 |
 
 아래 셋은 특히 오래 붙잡았던 것들입니다.
 
@@ -51,6 +54,16 @@ productService.releaseReservation(...);                                       //
 멱등성 기록·비즈니스 처리·발행 예약을 한 트랜잭션으로 묶어 해결했습니다. 이 과정에서 재고 부족처럼 재시도해도 안 될 실패는 예외 대신 반환값(sealed interface)으로 바꿨습니다. 예외로 던지면 트랜잭션이 rollback-only가 되어 보상 이벤트를 커밋할 수 없기 때문입니다.
 
 결정 근거와 구현 후 실제로 어땠는지는 [ADR 0001](docs/adr/0001-outbox-expansion.md)에 있습니다.
+
+### 집계 수량만으로는 이벤트 순서를 판별할 수 없다
+
+`REFUND_REQUIRED`는 order-service의 결정입니다. product-service에는 그 정보가 없어서, 만료로 예약을 해제한 뒤 결제 성공이 도착하면 주문이 이미 끝난 줄 모르고 확정합니다. `reservedQuantity`가 음수가 되고 팔지 않은 재고가 사라집니다. 반대 순서에서는 늦게 온 만료가 확정된 예약을 다시 해제해 팔린 재고를 되살립니다.
+
+`processed_events` 멱등성도 이걸 막지 못합니다. 이벤트 타입이 서로 달라 둘 다 "처음 보는 이벤트"이기 때문입니다.
+
+상품의 집계 수량만 보면 두 경우의 조건이 같아 보이는 것이 원인이었습니다. 주문별 `InventoryReservation(RESERVED/CONFIRMED/RELEASED)`을 두고 전이가 가능할 때만 수량을 움직이도록 바꿨습니다. 이벤트가 어떤 순서로 오든 결과가 같아집니다.
+
+도메인에도 가드를 남겼습니다. 전이 판정을 통과하더라도 예약량보다 많은 확정·해제는 거절합니다. 순서 판별은 예약이 하고, 이 가드는 수량이 음수로 내려가지 않게 하는 마지막 방어선입니다.
 
 ### 실패를 격리하는 것과 SAGA를 완결시키는 것은 다르다
 
@@ -96,6 +109,9 @@ poison message를 DLQ로 격리하도록 바꿨습니다. 실패 원인이 excep
 - PG 승인 호출은 Mock입니다. 연동 흐름은 토스페이먼츠 v2 규격(인증 → `paymentKey` → 서버 승인)을 따르지만 실제 카드사 승인은 일어나지 않습니다
 - 승인 API가 타임아웃되면 승인 여부를 알 수 없는데, `paymentKey`로 결제를 조회해 대사하는 경로가 아직 없습니다
 - 결제 확인 API에 인증이 없습니다. 금액 위변조는 저장된 금액과의 대조로 막지만, 호출자 검증은 없습니다
+- product-service의 상품 생성·재고 조정 API와 member 조회에도 인가가 없습니다. JWT 시크릿도 설정 파일에 있습니다
+- PG 승인 호출이 DB 트랜잭션 안에 있습니다. 승인 뒤 커밋이 실패하면 로컬 DB는 롤백되지만 실제 결제는 이미 끝났을 수 있습니다. `PaymentConfirmAtomicityTest`가 보장하는 것은 **로컬 DB의 원자성이지 결제의 원자성이 아닙니다.** 실제 PG라면 결제 시도 상태(`PROCESSING`)와 `paymentKey` 조회 대사가 선행되어야 합니다
+- `Order`·`Payment`에 낙관적 락이 없습니다. 재고 쪽은 예약 상태 전이로 순서를 판별하지만 주문 상태는 마지막 커밋이 앞선 결과를 덮을 수 있습니다
 - 서킷 브레이커 미적용. 동기 호출(`ProductClient`) 실패 시 빠른 차단이 없습니다
 - DLQ 재처리 자동화가 없습니다. 격리까지만 하고 재투입은 수동입니다
 - 별도 프로세스로 실행되지만 다중 노드가 아닌 단일 개발 장비에서 검증했습니다

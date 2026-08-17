@@ -35,7 +35,7 @@ public class PaymentResultHandler {
             return;
         }
         log.info("Received payment.completed — orderId={}, productId={}", event.orderId(), event.productId());
-        productService.confirmReservation(event.productId(), event.quantity());
+        productService.confirmReservation(event.orderId(), event.productId(), event.quantity());
     }
 
     @Transactional
@@ -44,7 +44,7 @@ public class PaymentResultHandler {
             return;
         }
         log.info("Received payment.failed — orderId={}, productId={}", event.orderId(), event.productId());
-        productService.releaseReservation(event.productId(), event.quantity());
+        productService.releaseReservation(event.orderId(), event.productId(), event.quantity());
     }
 
     private boolean alreadyProcessed(Long orderId, String eventType) {

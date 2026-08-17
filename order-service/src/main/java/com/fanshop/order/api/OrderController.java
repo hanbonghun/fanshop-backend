@@ -2,6 +2,8 @@ package com.fanshop.order.api;
 
 import com.fanshop.order.service.OrderService;
 import com.fanshop.support.response.ApiResponse;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,7 +21,7 @@ public class OrderController {
 
     @PostMapping
     public ApiResponse<OrderResponse> createOrder(@AuthenticationPrincipal String memberId,
-            @RequestHeader("Idempotency-Key") String idempotencyKey, @RequestBody CreateOrderRequest request) {
+            @RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody CreateOrderRequest request) {
         return ApiResponse.success(orderService.createOrder(Long.valueOf(memberId), idempotencyKey, request));
     }
 

@@ -104,6 +104,18 @@ class OrderIdempotencyTest extends ContextTest {
     }
 
     @Test
+    @DisplayName("다른 회원이 같은 멱등키를 보내면 각자의 주문이 생성된다 — 키는 회원 안에서만 유일하다")
+    void keyIsScopedToMember() {
+        OrderResponse mine = orderService.createOrder(1L, KEY, request());
+
+        OrderResponse others = orderService.createOrder(2L, KEY, request());
+
+        assertThat(others.getId()).isNotEqualTo(mine.getId());
+        assertThat(others.getMemberId()).isEqualTo(2L);
+        assertThat(orderRepository.count()).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("같은 키로 8개 스레드가 동시에 요청해도 주문은 한 건만 생성된다")
     void createsOnlyOneOrderUnderConcurrency() throws Exception {
         int threads = 8;

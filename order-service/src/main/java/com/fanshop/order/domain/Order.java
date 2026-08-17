@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -15,14 +16,17 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", uniqueConstraints = @UniqueConstraint(name = "uk_orders_member_idempotency",
+        columnNames = { "member_id", "idempotency_key" }))
 public class Order extends BaseEntity {
 
     /**
      * 클라이언트가 요청마다 부여하는 키. 같은 키의 재요청은 새 주문을 만들지 않는다. 유일성 판단은 애플리케이션 조회가 아니라 이 컬럼의 UNIQUE
      * 제약이 한다 — 조회 후 삽입 사이는 원자적이지 않기 때문이다.
+     * <p>
+     * 유일성의 범위는 회원이다. 전역으로 두면 다른 회원이 같은 키를 보냈을 때 남의 주문이 반환된다.
      */
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String idempotencyKey;
 
     @Column(nullable = false)
