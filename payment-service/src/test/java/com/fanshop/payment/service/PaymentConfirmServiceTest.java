@@ -38,8 +38,7 @@ class PaymentConfirmServiceTest {
         void recordsCompletedOnApproval() {
             // given
             PaymentCompletedEvent completedEvent = new PaymentCompletedEvent(1L, 2L, 3L, 4);
-            given(paymentService.confirm(1L, "pay_key_1", 50000L))
-                .willReturn(PaymentResult.approved(completedEvent));
+            given(paymentService.confirm(1L, "pay_key_1", 50000L)).willReturn(PaymentResult.approved(completedEvent));
 
             // when
             paymentConfirmService.confirm(1L, "pay_key_1", 50000L);

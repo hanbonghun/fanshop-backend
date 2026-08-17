@@ -27,8 +27,8 @@ public class ApiControllerAdvice {
     }
 
     /**
-     * 필수 헤더 누락은 서버 오류가 아니라 잘못된 요청이다. {@code Idempotency-Key}가 없으면 재요청 안전성을 보장할 수 없으므로
-     * 주문을 만들지 않고 거부한다.
+     * 필수 헤더 누락은 서버 오류가 아니라 잘못된 요청이다. {@code Idempotency-Key}가 없으면 재요청 안전성을 보장할 수 없으므로 주문을
+     * 만들지 않고 거부한다.
      */
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ApiResponse<?>> handleMissingHeader(MissingRequestHeaderException e) {

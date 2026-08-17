@@ -51,7 +51,8 @@ class OrderExpirySweeperTest extends ContextTest {
     @Test
     @DisplayName("임계 시각보다 오래 대기한 주문을 EXPIRED로 바꾸고 해제 이벤트를 Outbox에 남긴다")
     void expiresStaleOrder() {
-        Order stale = orderRepository.save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.WAITING_PAYMENT));
+        Order stale = orderRepository
+            .save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.WAITING_PAYMENT));
 
         int expired = sweeper.expireBefore(LocalDateTime.now().plusSeconds(1));
 
@@ -64,7 +65,8 @@ class OrderExpirySweeperTest extends ContextTest {
     @Test
     @DisplayName("임계 시각을 지나지 않은 주문은 건드리지 않는다")
     void keepsFreshOrder() {
-        Order fresh = orderRepository.save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.WAITING_PAYMENT));
+        Order fresh = orderRepository
+            .save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.WAITING_PAYMENT));
 
         int expired = sweeper.expireBefore(LocalDateTime.now().minusDays(1));
 
@@ -77,7 +79,8 @@ class OrderExpirySweeperTest extends ContextTest {
     @Test
     @DisplayName("해제 이벤트 기록이 실패하면 만료도 함께 롤백된다 — 만료만 되고 재고가 안 풀리는 것을 막는다")
     void rollsBackExpiryWhenOutboxRecordFails() {
-        Order stale = orderRepository.save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.WAITING_PAYMENT));
+        Order stale = orderRepository
+            .save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.WAITING_PAYMENT));
         // record()가 성공한 **뒤에** 실패시킨다. 앞에서 실패시키면 바깥 트랜잭션이 없을 때도 Outbox 행이
         // 안 생겨 테스트가 잘못된 이유로 통과한다 — 경계를 검증하려면 커밋 가능한 지점을 지나야 한다.
         willAnswer(invocation -> {
@@ -96,7 +99,8 @@ class OrderExpirySweeperTest extends ContextTest {
     @Test
     @DisplayName("결제 대기가 아닌 주문은 오래됐어도 만료 대상이 아니다")
     void ignoresOtherStatuses() {
-        orderRepository.save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.CONFIRMED));
+        orderRepository
+            .save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.CONFIRMED));
         orderRepository.save(new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, OrderStatus.PENDING));
 
         int expired = sweeper.expireBefore(LocalDateTime.now().plusSeconds(1));

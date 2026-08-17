@@ -120,8 +120,7 @@ class PaymentServiceTest {
             assertThat(result).isInstanceOf(PaymentResult.Approved.class);
             assertThat(payment.getStatus()).isEqualTo(PaymentStatus.APPROVED);
             assertThat(payment.getPaymentKey()).isEqualTo("pay_key_1");
-            assertThat(((PaymentResult.Approved) result).event())
-                .isEqualTo(new PaymentCompletedEvent(1L, 2L, 3L, 4));
+            assertThat(((PaymentResult.Approved) result).event()).isEqualTo(new PaymentCompletedEvent(1L, 2L, 3L, 4));
         }
 
         @Test

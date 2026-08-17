@@ -41,7 +41,6 @@ class OutboxEventRelayTest {
     /** 단위 테스트가 설정에 의존하지 않도록 배치 크기를 명시해 호출한다. 값 자체는 이 테스트의 관심사가 아니다. */
     private static final int BATCH = 100;
 
-
     @Nested
     @DisplayName("relay")
     class Relay {

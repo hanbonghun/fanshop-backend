@@ -24,7 +24,6 @@ public class OutboxEventRelay {
 
     static final int MAX_ATTEMPTS = 5;
 
-
     static final int RETENTION_DAYS = 7;
 
     static final int MAX_CONSECUTIVE_FAILURES = 3;

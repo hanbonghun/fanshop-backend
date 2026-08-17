@@ -66,9 +66,7 @@ public class OrderService {
             // 위 조회와 삽입 사이는 원자적이지 않다. 동시 요청이 먼저 커밋했다면 여기로 온다.
             // 유일성의 최종 판단은 애플리케이션 조회가 아니라 UNIQUE 제약이 한다.
             log.warn("멱등키 경합 — 먼저 커밋된 주문을 반환한다, key={}", idempotencyKey);
-            return orderRepository.findByIdempotencyKey(idempotencyKey)
-                .map(OrderResponse::from)
-                .orElseThrow(() -> e);
+            return orderRepository.findByIdempotencyKey(idempotencyKey).map(OrderResponse::from).orElseThrow(() -> e);
         }
     }
 
