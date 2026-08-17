@@ -1,13 +1,11 @@
 package com.fanshop.messaging;
 
-import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.fanshop.messaging.event.InventoryReservedEvent;
-import com.fanshop.messaging.event.PaymentCompletedEvent;
-import com.fanshop.messaging.event.PaymentFailedEvent;
 import com.fanshop.outbox.OutboxRecorder;
-import com.fanshop.payment.service.PaymentResult;
 import com.fanshop.payment.service.PaymentService;
 
 import org.junit.jupiter.api.DisplayName;
@@ -37,31 +35,23 @@ class InventoryReservedHandlerTest {
     class Handle {
 
         @Test
-        @DisplayName("결제 승인 시 PAYMENT_COMPLETED를 Outbox에 기록한다")
-        void recordsCompletedOnApproval() {
-            // given
-            PaymentCompletedEvent completedEvent = new PaymentCompletedEvent(1L, 2L, 3L, 1);
-            given(paymentService.processPayment(event)).willReturn(PaymentResult.approved(completedEvent));
-
+        @DisplayName("결제를 실행하지 않고 결제 대기만 만든다 — 승인은 구매자 인증 뒤에야 가능하다")
+        void prepareOnly() {
             // when
             inventoryReservedHandler.handle(event);
 
             // then
-            verify(outboxRecorder).record("PAYMENT_COMPLETED", completedEvent);
+            verify(paymentService).prepare(event);
         }
 
         @Test
-        @DisplayName("결제 실패 시 PAYMENT_FAILED를 Outbox에 기록한다")
-        void recordsFailedOnRejection() {
-            // given
-            PaymentFailedEvent failedEvent = new PaymentFailedEvent(1L, 2L, 3L, 1, "잔액 부족");
-            given(paymentService.processPayment(event)).willReturn(PaymentResult.failed(failedEvent));
-
+        @DisplayName("재고 예약만으로는 Outbox에 아무것도 기록하지 않는다 — 아직 결제된 것이 없다")
+        void recordsNothing() {
             // when
             inventoryReservedHandler.handle(event);
 
             // then
-            verify(outboxRecorder).record("PAYMENT_FAILED", failedEvent);
+            verify(outboxRecorder, never()).record(any(), any());
         }
 
     }
