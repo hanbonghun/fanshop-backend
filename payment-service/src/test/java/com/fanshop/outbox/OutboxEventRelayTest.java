@@ -38,15 +38,17 @@ class OutboxEventRelayTest {
     @InjectMocks
     private OutboxEventRelay outboxEventRelay;
 
+    /** 단위 테스트가 설정에 의존하지 않도록 배치 크기를 명시해 호출한다. 값 자체는 이 테스트의 관심사가 아니다. */
+    private static final int BATCH = 100;
+
     @Test
     @DisplayName("PAYMENT_COMPLETED를 발행하고 PUBLISHED로 마킹한다")
     void publishesCompleted() {
         PaymentCompletedEvent event = new PaymentCompletedEvent(1L, 2L, 3L, 4);
         OutboxEvent outboxEvent = new OutboxEvent("PAYMENT_COMPLETED", objectMapper.writeValueAsString(event));
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
-            .willReturn(List.of(outboxEvent));
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         verify(paymentEventPublisher).publishPaymentCompleted(event);
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
@@ -58,10 +60,9 @@ class OutboxEventRelayTest {
     void publishesFailed() {
         PaymentFailedEvent event = new PaymentFailedEvent(1L, 2L, 3L, 4, "잔액 부족");
         OutboxEvent outboxEvent = new OutboxEvent("PAYMENT_FAILED", objectMapper.writeValueAsString(event));
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
-            .willReturn(List.of(outboxEvent));
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         verify(paymentEventPublisher).publishPaymentFailed(event);
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
@@ -72,10 +73,9 @@ class OutboxEventRelayTest {
     @DisplayName("알 수 없는 이벤트 타입은 격리된다")
     void isolatesUnknownEventType() {
         OutboxEvent outboxEvent = new OutboxEvent("UNKNOWN_TYPE", "{}");
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
-            .willReturn(List.of(outboxEvent));
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
         assertThat(outboxEvent.getRetryCount()).isEqualTo(1);
@@ -86,12 +86,11 @@ class OutboxEventRelayTest {
     void isolatesAfterMaxAttempts() {
         PaymentCompletedEvent event = new PaymentCompletedEvent(1L, 2L, 3L, 4);
         OutboxEvent outboxEvent = new OutboxEvent("PAYMENT_COMPLETED", objectMapper.writeValueAsString(event));
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
-            .willReturn(List.of(outboxEvent));
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
         doThrow(new RuntimeException("Kafka 연결 실패")).when(paymentEventPublisher).publishPaymentCompleted(any());
 
         for (int i = 0; i < OutboxEventRelay.MAX_ATTEMPTS; i++) {
-            outboxEventRelay.relay();
+            outboxEventRelay.relayBatch(BATCH);
         }
 
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.FAILED);
@@ -102,11 +101,10 @@ class OutboxEventRelayTest {
     void keepsRowPendingAfterSingleFailure() {
         PaymentCompletedEvent event = new PaymentCompletedEvent(1L, 2L, 3L, 4);
         OutboxEvent outboxEvent = new OutboxEvent("PAYMENT_COMPLETED", objectMapper.writeValueAsString(event));
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
-            .willReturn(List.of(outboxEvent));
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
         doThrow(new RuntimeException("Kafka 연결 실패")).when(paymentEventPublisher).publishPaymentCompleted(any());
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
         assertThat(outboxEvent.getRetryCount()).isEqualTo(1);
@@ -115,9 +113,9 @@ class OutboxEventRelayTest {
     @Test
     @DisplayName("대기 중인 이벤트가 없으면 발행자를 호출하지 않는다")
     void doesNotInvokePublisherWhenNoPendingEvents() {
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of());
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of());
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         verify(paymentEventPublisher, never()).publishPaymentCompleted(any());
         verify(paymentEventPublisher, never()).publishPaymentFailed(any());

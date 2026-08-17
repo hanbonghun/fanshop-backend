@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class OrderTest {
 
     private Order orderWith(OrderStatus status) {
-        return new Order(1L, 2L, 3, 30000L, status);
+        return new Order(java.util.UUID.randomUUID().toString(), 1L, 2L, 3, 30000L, status);
     }
 
     @Nested

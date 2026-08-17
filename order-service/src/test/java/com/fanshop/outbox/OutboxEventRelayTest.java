@@ -38,6 +38,9 @@ class OutboxEventRelayTest {
     @InjectMocks
     private OutboxEventRelay outboxEventRelay;
 
+    /** 단위 테스트가 설정에 의존하지 않도록 배치 크기를 명시해 호출한다. 값 자체는 이 테스트의 관심사가 아니다. */
+    private static final int BATCH = 100;
+
     @Nested
     @DisplayName("relay")
     class Relay {
@@ -50,10 +53,10 @@ class OutboxEventRelayTest {
             String payload = objectMapper.writeValueAsString(event);
             OutboxEvent outboxEvent = new OutboxEvent("ORDER_CREATED", payload);
 
-            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of(outboxEvent));
+            given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
 
             // when
-            outboxEventRelay.relay();
+            outboxEventRelay.relayBatch(BATCH);
 
             // then
             verify(orderEventPublisher).publishOrderCreated(any(OrderCreatedEvent.class));
@@ -65,10 +68,10 @@ class OutboxEventRelayTest {
         @DisplayName("PENDING 이벤트가 없으면 Kafka 발행을 하지 않는다")
         void noPendingEvents() {
             // given
-            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of());
+            given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of());
 
             // when
-            outboxEventRelay.relay();
+            outboxEventRelay.relayBatch(BATCH);
 
             // then
             verify(orderEventPublisher, never()).publishOrderCreated(any());
@@ -82,11 +85,11 @@ class OutboxEventRelayTest {
             String payload = objectMapper.writeValueAsString(event);
             OutboxEvent outboxEvent = new OutboxEvent("ORDER_CREATED", payload);
 
-            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of(outboxEvent));
+            given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
             doThrow(new RuntimeException("Kafka 연결 실패")).when(orderEventPublisher).publishOrderCreated(any());
 
             // when
-            outboxEventRelay.relay();
+            outboxEventRelay.relayBatch(BATCH);
 
             // then
             assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
@@ -101,12 +104,12 @@ class OutboxEventRelayTest {
             String payload = objectMapper.writeValueAsString(event);
             OutboxEvent outboxEvent = new OutboxEvent("ORDER_CREATED", payload);
 
-            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of(outboxEvent));
+            given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
             doThrow(new RuntimeException("Kafka 연결 실패")).when(orderEventPublisher).publishOrderCreated(any());
 
             // when
             for (int i = 0; i < OutboxEventRelay.MAX_ATTEMPTS; i++) {
-                outboxEventRelay.relay();
+                outboxEventRelay.relayBatch(BATCH);
             }
 
             // then
@@ -119,10 +122,10 @@ class OutboxEventRelayTest {
         void unknownEventTypeIsNotPublished() {
             // given
             OutboxEvent outboxEvent = new OutboxEvent("UNKNOWN_TYPE", "{}");
-            given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of(outboxEvent));
+            given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of(outboxEvent));
 
             // when
-            outboxEventRelay.relay();
+            outboxEventRelay.relayBatch(BATCH);
 
             // then
             assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);

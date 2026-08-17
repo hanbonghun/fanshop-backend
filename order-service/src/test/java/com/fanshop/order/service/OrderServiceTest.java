@@ -66,11 +66,11 @@ class OrderServiceTest {
             given(productClient.getProduct(10L)).willReturn(ApiResponse.success(product));
             given(transactionTemplate.execute(any()))
                 .willAnswer(inv -> inv.<TransactionCallback<?>>getArgument(0).doInTransaction(null));
-            given(orderRepository.save(any(Order.class)))
-                .willReturn(new Order(memberId, 10L, 2, 58000L, OrderStatus.PENDING));
+            given(orderRepository.save(any(Order.class))).willReturn(
+                    new Order(java.util.UUID.randomUUID().toString(), memberId, 10L, 2, 58000L, OrderStatus.PENDING));
 
             // when
-            OrderResponse response = orderService.createOrder(memberId, request);
+            OrderResponse response = orderService.createOrder(memberId, "key-" + java.util.UUID.randomUUID(), request);
 
             // then
             assertThat(response.getTotalPrice()).isEqualTo(58000L);
@@ -90,7 +90,8 @@ class OrderServiceTest {
             given(productClient.getProduct(999L)).willThrow(HttpClientErrorException.NotFound.class);
 
             // when & then
-            assertThatThrownBy(() -> orderService.createOrder(memberId, request)).isInstanceOf(CoreException.class)
+            assertThatThrownBy(() -> orderService.createOrder(memberId, "key-" + java.util.UUID.randomUUID(), request))
+                .isInstanceOf(CoreException.class)
                 .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.PRODUCT_NOT_FOUND));
 
             verify(orderRepository, never()).save(any());
@@ -108,7 +109,7 @@ class OrderServiceTest {
         void success() {
             // given
             Long orderId = 1L;
-            Order order = new Order(1L, 10L, 2, 58000L, OrderStatus.PENDING);
+            Order order = new Order(java.util.UUID.randomUUID().toString(), 1L, 10L, 2, 58000L, OrderStatus.PENDING);
             given(orderRepository.findById(orderId)).willReturn(java.util.Optional.of(order));
 
             // when
@@ -140,7 +141,7 @@ class OrderServiceTest {
         void success() {
             // given
             Long orderId = 1L;
-            Order order = new Order(1L, 10L, 2, 58000L, OrderStatus.PENDING);
+            Order order = new Order(java.util.UUID.randomUUID().toString(), 1L, 10L, 2, 58000L, OrderStatus.PENDING);
             given(orderRepository.findById(orderId)).willReturn(java.util.Optional.of(order));
 
             // when

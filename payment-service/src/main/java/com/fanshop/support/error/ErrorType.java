@@ -5,11 +5,11 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorType {
 
-    PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, ErrorCode.PRODUCT_NOT_FOUND, "Product not found.", LogLevel.WARN),
-    INSUFFICIENT_STOCK(HttpStatus.CONFLICT, ErrorCode.INSUFFICIENT_STOCK, "Insufficient stock.", LogLevel.WARN),
-    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, ErrorCode.ORDER_NOT_FOUND, "Order not found.", LogLevel.WARN),
-    BAD_REQUEST(HttpStatus.BAD_REQUEST, ErrorCode.E400, "Invalid request.", LogLevel.WARN), DEFAULT_ERROR(
-            HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "An unexpected error has occurred.", LogLevel.ERROR);
+    PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, ErrorCode.PAYMENT_NOT_FOUND, "Payment not found.", LogLevel.WARN),
+    PAYMENT_AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, ErrorCode.PAYMENT_AMOUNT_MISMATCH, "Payment amount mismatch.",
+            LogLevel.WARN),
+    DEFAULT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.E500, "An unexpected error has occurred.",
+            LogLevel.ERROR);
 
     private final HttpStatus status;
 

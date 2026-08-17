@@ -18,6 +18,13 @@ import lombok.NoArgsConstructor;
 @Table(name = "orders")
 public class Order extends BaseEntity {
 
+    /**
+     * 클라이언트가 요청마다 부여하는 키. 같은 키의 재요청은 새 주문을 만들지 않는다. 유일성 판단은 애플리케이션 조회가 아니라 이 컬럼의 UNIQUE
+     * 제약이 한다 — 조회 후 삽입 사이는 원자적이지 않기 때문이다.
+     */
+    @Column(nullable = false, unique = true)
+    private String idempotencyKey;
+
     @Column(nullable = false)
     private Long memberId;
 
@@ -34,7 +41,9 @@ public class Order extends BaseEntity {
     @Column(nullable = false)
     private OrderStatus status;
 
-    public Order(Long memberId, Long productId, int quantity, long totalPrice, OrderStatus status) {
+    public Order(String idempotencyKey, Long memberId, Long productId, int quantity, long totalPrice,
+            OrderStatus status) {
+        this.idempotencyKey = idempotencyKey;
         this.memberId = memberId;
         this.productId = productId;
         this.quantity = quantity;

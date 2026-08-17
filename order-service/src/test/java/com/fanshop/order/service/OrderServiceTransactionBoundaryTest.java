@@ -55,7 +55,7 @@ class OrderServiceTransactionBoundaryTest extends ContextTest {
             return ApiResponse.success(new ProductResponse(3L, "티셔츠", 10000L, 100));
         }).given(productClient).getProduct(3L);
 
-        orderService.createOrder(1L, new CreateOrderRequest(3L, 2));
+        orderService.createOrder(1L, "key-" + java.util.UUID.randomUUID(), new CreateOrderRequest(3L, 2));
 
         assertThat(insideTransaction[0]).isFalse();
     }
@@ -66,7 +66,7 @@ class OrderServiceTransactionBoundaryTest extends ContextTest {
         given(productClient.getProduct(3L))
             .willReturn(ApiResponse.success(new ProductResponse(3L, "티셔츠", 10000L, 100)));
 
-        orderService.createOrder(1L, new CreateOrderRequest(3L, 2));
+        orderService.createOrder(1L, "key-" + java.util.UUID.randomUUID(), new CreateOrderRequest(3L, 2));
 
         assertThat(orderRepository.count()).isEqualTo(1);
         assertThat(outboxEventRepository.findAll()).singleElement()

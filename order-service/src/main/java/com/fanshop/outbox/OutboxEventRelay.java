@@ -10,6 +10,7 @@ import com.fanshop.messaging.event.OrderExpiredEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +24,6 @@ public class OutboxEventRelay {
 
     static final int MAX_ATTEMPTS = 5;
 
-    static final int BATCH_SIZE = 100;
-
     static final int RETENTION_DAYS = 7;
 
     static final int MAX_CONSECUTIVE_FAILURES = 3;
@@ -35,11 +34,24 @@ public class OutboxEventRelay {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * 한 틱이 가져갈 이벤트 수. 릴레이의 처리량 상한은 {@code 배치 크기 / 폴링 주기}로 정해지므로 둘 다 조절할 수 있어야 어느 쪽이 실제
+     * 제약인지 가릴 수 있다. 키우면 한 틱의 처리량은 늘지만 트랜잭션이 길어져 {@code FOR UPDATE SKIP LOCKED}로 잡은 행과 DB
+     * 커넥션을 그만큼 오래 붙든다. 최적값은 환경마다 달라 측정으로 정할 값이다.
+     */
+    @Value("${outbox.relay.batch-size:100}")
+    private int batchSize;
+
     @Scheduled(fixedDelayString = "${outbox.relay.fixed-delay:1000}",
             initialDelayString = "${outbox.relay.initial-delay:0}")
     @Transactional
     public void relay() {
-        List<OutboxEvent> pending = outboxEventRepository.findPendingBatch(BATCH_SIZE);
+        relayBatch(batchSize);
+    }
+
+    @Transactional
+    public void relayBatch(int batchSize) {
+        List<OutboxEvent> pending = outboxEventRepository.findPendingBatch(batchSize);
 
         int consecutiveFailures = 0;
         for (OutboxEvent outboxEvent : pending) {
