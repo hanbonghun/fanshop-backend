@@ -40,15 +40,19 @@ class OutboxEventRelayTest {
     @InjectMocks
     private OutboxEventRelay outboxEventRelay;
 
+    /** 단위 테스트가 설정에 의존하지 않도록 배치 크기를 명시해 호출한다. 값 자체는 이 테스트의 관심사가 아니다. */
+    private static final int BATCH = 100;
+
+
     @Test
     @DisplayName("INVENTORY_RESERVED를 발행하고 PUBLISHED로 마킹한다")
     void publishesReserved() {
         InventoryReservedEvent event = new InventoryReservedEvent(1L, 2L, 3L, 4, 50000L);
         OutboxEvent outboxEvent = new OutboxEvent("INVENTORY_RESERVED", objectMapper.writeValueAsString(event));
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH))
             .willReturn(List.of(outboxEvent));
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         verify(stockEventPublisher).publishInventoryReserved(event);
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
@@ -60,10 +64,10 @@ class OutboxEventRelayTest {
     void publishesRejected() {
         InventoryRejectedEvent event = new InventoryRejectedEvent(1L, "재고 부족");
         OutboxEvent outboxEvent = new OutboxEvent("INVENTORY_REJECTED", objectMapper.writeValueAsString(event));
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH))
             .willReturn(List.of(outboxEvent));
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         verify(stockEventPublisher).publishInventoryRejected(event);
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
@@ -74,10 +78,10 @@ class OutboxEventRelayTest {
     @DisplayName("알 수 없는 이벤트 타입은 격리된다")
     void isolatesUnknownEventType() {
         OutboxEvent outboxEvent = new OutboxEvent("UNKNOWN_TYPE", "{}");
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH))
             .willReturn(List.of(outboxEvent));
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
         assertThat(outboxEvent.getRetryCount()).isEqualTo(1);
@@ -88,12 +92,12 @@ class OutboxEventRelayTest {
     void isolatesAfterMaxAttempts() {
         InventoryReservedEvent event = new InventoryReservedEvent(1L, 2L, 3L, 4, 50000L);
         OutboxEvent outboxEvent = new OutboxEvent("INVENTORY_RESERVED", objectMapper.writeValueAsString(event));
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH))
             .willReturn(List.of(outboxEvent));
         doThrow(new RuntimeException("Kafka 연결 실패")).when(stockEventPublisher).publishInventoryReserved(any());
 
         for (int i = 0; i < OutboxEventRelay.MAX_ATTEMPTS; i++) {
-            outboxEventRelay.relay();
+            outboxEventRelay.relayBatch(BATCH);
         }
 
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.FAILED);
@@ -104,11 +108,11 @@ class OutboxEventRelayTest {
     void keepsRowPendingAfterSingleFailure() {
         InventoryReservedEvent event = new InventoryReservedEvent(1L, 2L, 3L, 4, 50000L);
         OutboxEvent outboxEvent = new OutboxEvent("INVENTORY_RESERVED", objectMapper.writeValueAsString(event));
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE))
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH))
             .willReturn(List.of(outboxEvent));
         doThrow(new RuntimeException("Kafka 연결 실패")).when(stockEventPublisher).publishInventoryReserved(any());
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
         assertThat(outboxEvent.getRetryCount()).isEqualTo(1);
@@ -117,9 +121,9 @@ class OutboxEventRelayTest {
     @Test
     @DisplayName("대기 중인 이벤트가 없으면 발행자를 호출하지 않는다")
     void doesNotInvokePublisherWhenNoPendingEvents() {
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(List.of());
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(List.of());
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         verify(stockEventPublisher, never()).publishInventoryReserved(any());
         verify(stockEventPublisher, never()).publishInventoryRejected(any());
@@ -133,10 +137,10 @@ class OutboxEventRelayTest {
             InventoryReservedEvent event = new InventoryReservedEvent((long) i, 2L, 3L, 4, 50000L);
             batch.add(new OutboxEvent("INVENTORY_RESERVED", objectMapper.writeValueAsString(event)));
         }
-        BDDMockito.given(outboxEventRepository.findPendingBatch(OutboxEventRelay.BATCH_SIZE)).willReturn(batch);
+        BDDMockito.given(outboxEventRepository.findPendingBatch(BATCH)).willReturn(batch);
         doThrow(new RuntimeException("Kafka 연결 실패")).when(stockEventPublisher).publishInventoryReserved(any());
 
-        outboxEventRelay.relay();
+        outboxEventRelay.relayBatch(BATCH);
 
         verify(stockEventPublisher, times(OutboxEventRelay.MAX_CONSECUTIVE_FAILURES)).publishInventoryReserved(any());
         assertThat(batch.subList(0, OutboxEventRelay.MAX_CONSECUTIVE_FAILURES))
