@@ -26,9 +26,10 @@ Java 25 · Spring Boot 4 · Kafka · SAGA Choreography · 서비스 4개, DB 4�
 | 재고 예약이 결제를 자동 실행 | 구매자 인증 없이 결제가 성립할 수 없는데 서버가 단독 진행 | 승인을 confirm API로 분리 ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
 | 승인 금액을 클라이언트가 지정 | 금액을 조작해 승인 요청 가능 | 예약 시점에 확정 저장한 금액과 대조 ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
 | 주문 요청이 두 번 도달 | 더블클릭·재시도에 주문과 재고 예약이 두 건 | `Idempotency-Key` + `UNIQUE(member_id, key)` ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
-| 만료 해제 뒤 늦은 결제 성공 | product가 주문 상태를 몰라 확정 → 예약량이 음수, 팔지 않은 재고 증발 | 주문별 `InventoryReservation` 상태 전이 |
-| 확정 뒤 늦은 만료 이벤트 | 팔린 재고가 되살아남 | 같은 전이 가드 |
-| 음수 수량 요청 | 예약량이 줄고 확정 시 재고가 늘어남 | Bean Validation + 도메인 수량 가드 |
+| 만료 해제 뒤 늦은 결제 성공 | product가 주문 상태를 몰라 확정 → 예약량이 음수, 팔지 않은 재고 증발 | 주문별 `InventoryReservation` 상태 전이 ([#28](https://github.com/hanbonghun/fanshop-backend/pull/28)) |
+| 확정 뒤 늦은 만료 이벤트 | 팔린 재고가 되살아남 | 같은 전이 가드 ([#28](https://github.com/hanbonghun/fanshop-backend/pull/28)) |
+| 음수 수량 요청 | 예약량이 줄고 확정 시 재고가 늘어남 | Bean Validation + 도메인 수량 가드 ([#28](https://github.com/hanbonghun/fanshop-backend/pull/28)) |
+| 보상 경로를 실제로 재현할 수단 없음 | Mock PG가 항상 승인해 `payment.failed` 경로를 종단으로 못 봄 | `paymentKey` 접두사 실패 트리거 ([#29](https://github.com/hanbonghun/fanshop-backend/pull/29)) |
 
 아래 셋은 특히 오래 붙잡았던 것들입니다.
 
@@ -160,8 +161,8 @@ DB는 H2로 격리해뒀는데 Kafka는 안 해놔서, 테스트가 개발용 �
 ## 주문 플로우
 
 ```
-[POST /orders]  Idempotency-Key 필수
-     │  같은 키의 재요청이면 기존 주문을 그대로 반환하고 끝낸다
+[POST /orders]  Idempotency-Key 필수 · quantity > 0
+     │  같은 (member_id, key) 재요청이면 기존 주문을 그대로 반환하고 끝낸다
      ▼
  Order 생성 (PENDING) + outbox_events 저장 (같은 트랜잭션)
      │
@@ -170,7 +171,12 @@ DB는 H2로 격리해뒀는데 Kafka는 안 해놔서, 테스트가 개발용 �
                              │
                  ┌───────────┘
                  ▼
-         Product: 재고 확인 & 예약
+     Product ── 한 트랜잭션 ────────────────────────┐
+       processed_events 멱등 체크                   │
+       products FOR UPDATE → reserved += q          │
+       inventory_reservations 생성 (RESERVED)  ★    │
+       outbox_events 저장                           │
+     ─────────────────────────────────────────────┘
                  │
         ┌────────┴────────┐
         ▼                 ▼
@@ -194,11 +200,20 @@ payment      payment
   │            │
   ▼            ▼
 Order:       Order: CANCELLED
-CONFIRMED    + 예약 해제
-+ 재고 확정
+CONFIRMED    Product: 예약 RESERVED→RELEASED
+Product:              reserved -= q
+  예약 RESERVED→CONFIRMED
+  stock -= q, reserved -= q
 
-기다리는 동안 인증이 오지 않으면 ─▶ 스위퍼가 EXPIRED + order.expired ─▶ Product: 예약 해제
+기다리는 동안 인증이 오지 않으면
+  ─▶ 스위퍼가 EXPIRED + order.expired ─▶ Product: 예약 RESERVED→RELEASED
+
+만료된 뒤 결제 성공이 도착하면
+  ─▶ Order:   EXPIRED → REFUND_REQUIRED   (재고를 되잡지 않고 운영 개입 대상)
+  ─▶ Product: 예약이 이미 RELEASED → 전이 불가 → 아무것도 하지 않는다  ★
 ```
+
+★ 표시가 주문별 예약입니다. 상품의 집계 수량만으로는 "만료 뒤 늦은 결제"와 "확정 뒤 늦은 만료"의 조건이 같아 보여, 둘 다 반영되면 예약량이 음수가 되거나 팔린 재고가 되살아납니다. 전이가 가능할 때만 수량을 움직이므로 이벤트 순서와 무관하게 결과가 같습니다.
 
 서비스 4개(member / order / product / payment)가 각각 독립 프로세스이며 DB도 분리돼 있습니다.
 오케스트레이터 없이 이벤트 연쇄로 진행하는 SAGA Choreography입니다.
