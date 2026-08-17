@@ -5,6 +5,8 @@
 서비스를 나누는 것보다 나눈 뒤가 어렵다고 봐서, 기능을 넓히는 대신 한 유즈케이스를 깊게 팠습니다.
 장바구니나 배송, 정산은 없습니다. 의도적으로 뺐습니다.
 
+정합성을 지키는 구조를 만들었으면 그 대가도 알아야 한다고 봐서, 처리량 상한도 함께 쟀습니다. 측정 결과 병목은 재고 행 하나였고, 병목이 아니라고 확인된 것은 튜닝하지 않았습니다. 전체 기록은 [docs/measurements](docs/measurements)에 있습니다.
+
 Java 25 · Spring Boot 4 · Kafka · SAGA Choreography · 서비스 4개, DB 4개
 
 ## 정합성이 깨지는 지점과 대응
@@ -21,9 +23,9 @@ Java 25 · Spring Boot 4 · Kafka · SAGA Choreography · 서비스 4개, DB 4�
 | 멱등성 기록이 선커밋 | 처리 안 됐는데 처리됨으로 남아 재시도가 스킵됨 | 트랜잭션 경계 재설계 ([ADR](docs/adr/0001-outbox-expansion.md)) |
 | 릴레이가 미인식 타입 수신 | 전달 안 된 행이 PUBLISHED로 기록 | 예외 전환 후 FAILED 격리 |
 | 결제 응답이 영영 안 옴 | 주문이 멈추고 예약 재고가 영구히 잠김 | 만료 스위퍼 |
-| 재고 예약이 결제를 자동 실행 | 구매자 인증 없이 결제가 성립할 수 없는데 서버가 단독 진행 | 승인을 confirm API로 분리 |
-| 승인 금액을 클라이언트가 지정 | 금액을 조작해 승인 요청 가능 | 예약 시점에 확정 저장한 금액과 대조 |
-| 주문 요청이 두 번 도달 | 더블클릭·재시도에 주문과 재고 예약이 두 건 | `Idempotency-Key` + `orders` UNIQUE |
+| 재고 예약이 결제를 자동 실행 | 구매자 인증 없이 결제가 성립할 수 없는데 서버가 단독 진행 | 승인을 confirm API로 분리 ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
+| 승인 금액을 클라이언트가 지정 | 금액을 조작해 승인 요청 가능 | 예약 시점에 확정 저장한 금액과 대조 ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
+| 주문 요청이 두 번 도달 | 더블클릭·재시도에 주문과 재고 예약이 두 건 | `Idempotency-Key` + `orders` UNIQUE ([#26](https://github.com/hanbonghun/fanshop-backend/pull/26)) |
 
 아래 셋은 특히 오래 붙잡았던 것들입니다.
 
