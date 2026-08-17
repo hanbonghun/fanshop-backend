@@ -46,7 +46,7 @@ public class OrderCreatedHandler {
         processedEventRepository.save(new ProcessedEvent(eventId, EVENT_TYPE));
 
         log.info("Received order.created — orderId={}, productId={}", event.orderId(), event.productId());
-        switch (productService.softReserveStock(event.productId(), event.quantity())) {
+        switch (productService.softReserveStock(event.orderId(), event.productId(), event.quantity())) {
             case ReservationResult.Reserved() ->
                 outboxRecorder.record(INVENTORY_RESERVED, new InventoryReservedEvent(event.orderId(), event.memberId(),
                         event.productId(), event.quantity(), event.totalPrice()));

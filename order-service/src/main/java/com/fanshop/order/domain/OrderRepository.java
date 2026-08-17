@@ -10,6 +10,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByStatusAndUpdatedAtBefore(OrderStatus status, LocalDateTime threshold);
 
-    Optional<Order> findByIdempotencyKey(String idempotencyKey);
+    Optional<Order> findByMemberIdAndIdempotencyKey(Long memberId, String idempotencyKey);
 
 }

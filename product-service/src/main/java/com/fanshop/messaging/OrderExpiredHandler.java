@@ -36,7 +36,7 @@ public class OrderExpiredHandler {
         processedEventRepository.save(new ProcessedEvent(eventId, ORDER_EXPIRED));
 
         log.info("Received order.expired — orderId={}, productId={}", event.orderId(), event.productId());
-        productService.releaseReservation(event.productId(), event.quantity());
+        productService.releaseReservation(event.orderId(), event.productId(), event.quantity());
     }
 
 }

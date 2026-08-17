@@ -50,7 +50,7 @@ class PaymentResultHandlerTest {
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
-            verify(productService).confirmReservation(3L, 1);
+            verify(productService).confirmReservation(1L, 3L, 1);
         }
 
         @Test
@@ -63,7 +63,7 @@ class PaymentResultHandlerTest {
             paymentResultHandler.handlePaymentCompleted(event);
 
             // then
-            verify(productService, never()).confirmReservation(anyLong(), anyInt());
+            verify(productService, never()).confirmReservation(anyLong(), anyLong(), anyInt());
         }
 
     }
@@ -85,7 +85,7 @@ class PaymentResultHandlerTest {
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
-            verify(productService).releaseReservation(3L, 1);
+            verify(productService).releaseReservation(1L, 3L, 1);
         }
 
         @Test
@@ -98,7 +98,7 @@ class PaymentResultHandlerTest {
             paymentResultHandler.handlePaymentFailed(event);
 
             // then
-            verify(productService, never()).releaseReservation(anyLong(), anyInt());
+            verify(productService, never()).releaseReservation(anyLong(), anyLong(), anyInt());
         }
 
     }

@@ -40,7 +40,8 @@ class PaymentResultHandlerAtomicityTest extends ContextTest {
     @Test
     @DisplayName("재고 해제가 일시 실패하면 멱등성 기록도 롤백된다 — 예약이 영구히 잠기는 것을 막는다")
     void rollsBackProcessedEventOnTransientFailure() {
-        willThrow(new RuntimeException("DB 일시 오류")).given(productService).releaseReservation(anyLong(), anyInt());
+        willThrow(new RuntimeException("DB 일시 오류")).given(productService)
+            .releaseReservation(anyLong(), anyLong(), anyInt());
 
         assertThatThrownBy(() -> handler.handlePaymentFailed(new PaymentFailedEvent(1L, 2L, 3L, 4, "잔액 부족")))
             .isInstanceOf(RuntimeException.class);

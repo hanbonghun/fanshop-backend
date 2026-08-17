@@ -49,7 +49,7 @@ public class OrderService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public OrderResponse createOrder(Long memberId, String idempotencyKey, CreateOrderRequest request) {
         // 빠른 경로. 이미 처리된 키면 상품 조회(동기 HTTP)까지 생략한다.
-        Optional<Order> processed = orderRepository.findByIdempotencyKey(idempotencyKey);
+        Optional<Order> processed = orderRepository.findByMemberIdAndIdempotencyKey(memberId, idempotencyKey);
         if (processed.isPresent()) {
             log.info("멱등 재요청 — 기존 주문 반환, key={}, orderId={}", idempotencyKey, processed.get().getId());
             return OrderResponse.from(processed.get());
@@ -66,7 +66,9 @@ public class OrderService {
             // 위 조회와 삽입 사이는 원자적이지 않다. 동시 요청이 먼저 커밋했다면 여기로 온다.
             // 유일성의 최종 판단은 애플리케이션 조회가 아니라 UNIQUE 제약이 한다.
             log.warn("멱등키 경합 — 먼저 커밋된 주문을 반환한다, key={}", idempotencyKey);
-            return orderRepository.findByIdempotencyKey(idempotencyKey).map(OrderResponse::from).orElseThrow(() -> e);
+            return orderRepository.findByMemberIdAndIdempotencyKey(memberId, idempotencyKey)
+                .map(OrderResponse::from)
+                .orElseThrow(() -> e);
         }
     }
 

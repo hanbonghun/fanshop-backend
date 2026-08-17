@@ -51,7 +51,7 @@ class OrderCreatedHandlerTest {
             // given
             OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
             given(processedEventRepository.existsByEventIdAndEventType("1", "ORDER_CREATED")).willReturn(false);
-            given(productService.softReserveStock(3L, 4)).willReturn(ReservationResult.reserved());
+            given(productService.softReserveStock(1L, 3L, 4)).willReturn(ReservationResult.reserved());
 
             // when
             orderCreatedHandler.handle(event);
@@ -67,7 +67,7 @@ class OrderCreatedHandlerTest {
             OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
             String reason = ErrorType.INSUFFICIENT_STOCK.getMessage();
             given(processedEventRepository.existsByEventIdAndEventType("1", "ORDER_CREATED")).willReturn(false);
-            given(productService.softReserveStock(3L, 4)).willReturn(ReservationResult.rejected(reason));
+            given(productService.softReserveStock(1L, 3L, 4)).willReturn(ReservationResult.rejected(reason));
 
             // when
             orderCreatedHandler.handle(event);
@@ -93,7 +93,7 @@ class OrderCreatedHandlerTest {
             orderCreatedHandler.handle(event);
 
             // then
-            verify(productService, never()).softReserveStock(anyLong(), anyInt());
+            verify(productService, never()).softReserveStock(anyLong(), anyLong(), anyInt());
             verify(outboxRecorder, never()).record(anyString(), any());
         }
 
@@ -103,14 +103,14 @@ class OrderCreatedHandlerTest {
             // given
             OrderCreatedEvent event = new OrderCreatedEvent(1L, 2L, 3L, 4, 50000L);
             given(processedEventRepository.existsByEventIdAndEventType("1", "ORDER_CREATED")).willReturn(false);
-            given(productService.softReserveStock(3L, 4)).willReturn(ReservationResult.reserved());
+            given(productService.softReserveStock(1L, 3L, 4)).willReturn(ReservationResult.reserved());
 
             // when
             orderCreatedHandler.handle(event);
 
             // then
             verify(processedEventRepository).save(any(ProcessedEvent.class));
-            verify(productService).softReserveStock(3L, 4);
+            verify(productService).softReserveStock(1L, 3L, 4);
         }
 
     }

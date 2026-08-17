@@ -42,7 +42,7 @@ class OrderExpiredHandlerTest {
         orderExpiredHandler.handleOrderExpired(event);
 
         verify(processedEventRepository).save(any(ProcessedEvent.class));
-        verify(productService).releaseReservation(3L, 4);
+        verify(productService).releaseReservation(1L, 3L, 4);
     }
 
     @Test
@@ -52,7 +52,7 @@ class OrderExpiredHandlerTest {
 
         orderExpiredHandler.handleOrderExpired(event);
 
-        verify(productService, never()).releaseReservation(anyLong(), anyInt());
+        verify(productService, never()).releaseReservation(anyLong(), anyLong(), anyInt());
     }
 
 }

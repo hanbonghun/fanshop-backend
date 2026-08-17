@@ -7,6 +7,7 @@ import com.fanshop.support.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -34,6 +35,19 @@ public class ApiControllerAdvice {
     public ResponseEntity<ApiResponse<?>> handleMissingHeader(MissingRequestHeaderException e) {
         log.warn("필수 헤더 누락 — {}", e.getHeaderName());
         return new ResponseEntity<>(ApiResponse.error(ErrorType.BAD_REQUEST, e.getHeaderName()),
+                ErrorType.BAD_REQUEST.getStatus());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<?>> handleValidation(MethodArgumentNotValidException e) {
+        String detail = e.getBindingResult()
+            .getFieldErrors()
+            .stream()
+            .map(f -> f.getField() + ": " + f.getDefaultMessage())
+            .toList()
+            .toString();
+        log.warn("요청 검증 실패 — {}", detail);
+        return new ResponseEntity<>(ApiResponse.error(ErrorType.BAD_REQUEST, detail),
                 ErrorType.BAD_REQUEST.getStatus());
     }
 

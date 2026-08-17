@@ -11,7 +11,9 @@ import java.util.Optional;
 import com.fanshop.product.api.CreateProductRequest;
 import com.fanshop.product.api.ProductResponse;
 import com.fanshop.product.domain.Product;
+import com.fanshop.product.domain.InventoryReservation;
 import com.fanshop.product.domain.ProductRepository;
+import com.fanshop.product.domain.ReservationRepository;
 import com.fanshop.support.error.CoreException;
 import com.fanshop.support.error.ErrorType;
 
@@ -28,6 +30,9 @@ class ProductServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private ReservationRepository reservationRepository;
 
     @InjectMocks
     private ProductService productService;
@@ -96,9 +101,10 @@ class ProductServiceTest {
         void success() {
             Long productId = 1L;
             Product product = new Product("티셔츠", 29000L, 100);
+            given(reservationRepository.findByOrderId(1L)).willReturn(Optional.empty());
             given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
-            ReservationResult result = productService.softReserveStock(productId, 10);
+            ReservationResult result = productService.softReserveStock(1L, productId, 10);
 
             assertThat(result).isInstanceOf(ReservationResult.Reserved.class);
             assertThat(product.getReservedQuantity()).isEqualTo(10);
@@ -108,9 +114,10 @@ class ProductServiceTest {
         @Test
         @DisplayName("존재하지 않는 상품이면 Rejected를 반환한다 — 재시도해도 성공하지 않으므로 예외가 아니다")
         void notFound() {
+            given(reservationRepository.findByOrderId(1L)).willReturn(Optional.empty());
             given(productRepository.findByIdWithLock(999L)).willReturn(Optional.empty());
 
-            ReservationResult result = productService.softReserveStock(999L, 1);
+            ReservationResult result = productService.softReserveStock(1L, 999L, 1);
 
             assertThat(result).isInstanceOf(ReservationResult.Rejected.class);
             assertThat(((ReservationResult.Rejected) result).reason())
@@ -122,9 +129,10 @@ class ProductServiceTest {
         void insufficientStock() {
             Long productId = 1L;
             Product product = new Product("티셔츠", 29000L, 5);
+            given(reservationRepository.findByOrderId(1L)).willReturn(Optional.empty());
             given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
-            ReservationResult result = productService.softReserveStock(productId, 10);
+            ReservationResult result = productService.softReserveStock(1L, productId, 10);
 
             assertThat(result).isInstanceOf(ReservationResult.Rejected.class);
             assertThat(((ReservationResult.Rejected) result).reason())
@@ -145,10 +153,12 @@ class ProductServiceTest {
             Long productId = 1L;
             Product product = new Product("티셔츠", 29000L, 100);
             product.softReserve(10);
+            given(reservationRepository.findByOrderIdWithLock(1L))
+                .willReturn(Optional.of(new InventoryReservation(1L, productId, 10)));
             given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
             // when
-            productService.confirmReservation(productId, 10);
+            productService.confirmReservation(1L, productId, 10);
 
             // then
             assertThat(product.getStockQuantity()).isEqualTo(90);
@@ -168,10 +178,12 @@ class ProductServiceTest {
             Long productId = 1L;
             Product product = new Product("티셔츠", 29000L, 100);
             product.softReserve(10);
+            given(reservationRepository.findByOrderIdWithLock(1L))
+                .willReturn(Optional.of(new InventoryReservation(1L, productId, 10)));
             given(productRepository.findByIdWithLock(productId)).willReturn(Optional.of(product));
 
             // when
-            productService.releaseReservation(productId, 10);
+            productService.releaseReservation(1L, productId, 10);
 
             // then
             assertThat(product.getStockQuantity()).isEqualTo(100); // 실재고 변화 없음
